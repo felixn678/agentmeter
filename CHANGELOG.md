@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/felixn678/agentmeter/compare/v0.4.0...v0.4.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **ci:** use array of sig patterns to avoid set -e + && exit trap ([357df5d](https://github.com/felixn678/agentmeter/commit/357df5d122b3357b2e7014a1501043b332607977))
+
 ## [0.4.0](https://github.com/felixn678/agentmeter/compare/v0.3.0...v0.4.0) (2026-06-05)
 
 
