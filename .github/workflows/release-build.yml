@@ -170,19 +170,23 @@ jobs:
           cp "$SRC_ARCHIVE" "${STAGE}/${DEST_NAME}"
           cp "$SRC_SIG"     "${STAGE}/${DEST_NAME}.sig"
 
-          # Also upload user-facing installers from the same bundle dir.
-          INSTALLERS=()
-          while IFS= read -r f; do INSTALLERS+=("$f"); done < <(
+          # Upload the staged updater bundle + signature first.
+          gh release upload "$TAG" \
+            "${STAGE}/${DEST_NAME}" \
+            "${STAGE}/${DEST_NAME}.sig" \
+            --clobber
+
+          # Then upload user-facing installers, excluding any that share a
+          # basename with DEST_NAME (Linux .AppImage is its own updater
+          # archive, so it would otherwise be uploaded twice and 404).
+          while IFS= read -r f; do
+            [[ "$(basename "$f")" == "$DEST_NAME" ]] && continue
+            gh release upload "$TAG" "$f" --clobber
+          done < <(
             find "$BUNDLE_DIR" \
               \( -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.rpm' -o -name '*.msi' -o -name '*.exe' \) \
               -type f
           )
-
-          gh release upload "$TAG" \
-            "${STAGE}/${DEST_NAME}" \
-            "${STAGE}/${DEST_NAME}.sig" \
-            "${INSTALLERS[@]}" \
-            --clobber
 
           SIG_CONTENT=$(cat "$SRC_SIG")
           URL="https://github.com/${REPO}/releases/download/${TAG}/${DEST_NAME}"
