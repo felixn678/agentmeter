@@ -6,8 +6,26 @@ use ccusage::{Granularity, UsageReport};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    Emitter, Manager, WindowEvent,
+    AppHandle, Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_store::StoreExt;
+
+/// Show or hide the floating widget window and persist the choice.
+fn set_widget_visible(app: &AppHandle, visible: bool) {
+    if let Some(w) = app.get_webview_window("widget") {
+        if visible {
+            let _ = w.show();
+            // Keep it pinned to the desktop (below normal windows), not raised/focused.
+            let _ = w.set_always_on_bottom(true);
+        } else {
+            let _ = w.hide();
+        }
+    }
+    if let Ok(store) = app.store("agentmeter.json") {
+        store.set("widgetVisible", serde_json::json!(visible));
+        let _ = store.save();
+    }
+}
 
 /// Command for the frontend: fetch a report at "daily" | "weekly" | "monthly".
 #[tauri::command]
@@ -26,6 +44,16 @@ async fn get_blocks(app: tauri::AppHandle) -> Result<Option<ActiveBlock>, String
     blocks::fetch_active(&app).await
 }
 
+/// Command for the frontend: toggle the floating widget window's visibility.
+#[tauri::command]
+fn toggle_widget(app: AppHandle) {
+    let visible = app
+        .get_webview_window("widget")
+        .map(|w| w.is_visible().unwrap_or(false))
+        .unwrap_or(false);
+    set_widget_visible(&app, !visible);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -33,7 +61,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![get_usage, get_blocks])
+        .invoke_handler(tauri::generate_handler![get_usage, get_blocks, toggle_widget])
         // Closing the window hides it (the app stays in the tray and keeps running,
         // so budget/notification checks keep firing). Quit via the tray menu.
         .on_window_event(|window, event| {
@@ -45,9 +73,10 @@ pub fn run() {
         .setup(|app| {
             // --- Tray menu ---
             let show = MenuItem::with_id(app, "show", "Open agentmeter", true, None::<&str>)?;
+            let widget = MenuItem::with_id(app, "widget", "Show / hide widget", true, None::<&str>)?;
             let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &settings, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &widget, &settings, &quit])?;
 
             // --- Tray icon ---
             let tray = TrayIconBuilder::new()
@@ -69,6 +98,13 @@ pub fn run() {
                             let _ = w.set_focus();
                             let _ = w.emit("open-settings", ());
                         }
+                    }
+                    "widget" => {
+                        let visible = app
+                            .get_webview_window("widget")
+                            .map(|w| w.is_visible().unwrap_or(false))
+                            .unwrap_or(false);
+                        set_widget_visible(app, !visible);
                     }
                     _ => {}
                 })
@@ -93,6 +129,19 @@ pub fn run() {
                     }
                 }
             });
+
+            // Restore the widget window if it was visible last session.
+            if let Ok(store) = app.store("agentmeter.json") {
+                if store
+                    .get("widgetVisible")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
+                    if let Some(w) = app.get_webview_window("widget") {
+                        let _ = w.show();
+                    }
+                }
+            }
 
             Ok(())
         })

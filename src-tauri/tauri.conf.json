@@ -12,11 +12,26 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "agentmeter",
         "width": 800,
         "height": 600
+      },
+      {
+        "label": "widget",
+        "title": "agentmeter widget",
+        "width": 304,
+        "height": 192,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnBottom": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "shadow": false,
+        "visible": false
       }
     ],
+    "macOSPrivateApi": true,
     "security": {
       "csp": null
     }

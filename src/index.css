@@ -66,6 +66,13 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Widget window: transparent page so the floating card shows rounded, with a shadow. */
+html.widget,
+html.widget body {
+  background: transparent;
+  overflow: hidden;
+}
+
 /* Hero cost card: a clean, defined warm tint (accent blended into the surface) —
    intentional, not a hazy wash. Depth comes from the standard card shadow. */
 .stat-hero {
