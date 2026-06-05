@@ -1,0 +1,169 @@
+name: release-build
+
+# Triggered by release-please tags. Two-stage workflow:
+#   build  (matrix) — produce signed bundles per platform, upload as workflow artifacts
+#   publish        — download all artifacts, merge latest.json, upload to GH Release
+# Two stages avoid tauri-action#914 race where each matrix job clobbers
+# latest.json with its own platform (RED-TEAM C4).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (must already exist as a git tag, e.g. v0.3.0)'
+        required: true
+
+# RED-TEAM H1: zero default workflow permissions; scope per-job.
+permissions: {}
+
+jobs:
+  # RED-TEAM H2: resolve and regex-validate the tag once.
+  resolve-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+    steps:
+      - id: r
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid tag: $TAG (expected vMAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14,       target: aarch64-apple-darwin,     label: mac-arm64 }
+          - { os: macos-15-intel, target: x86_64-apple-darwin,      label: mac-x64 }   # RED-TEAM C3 (macos-13 retired)
+          - { os: ubuntu-22.04,   target: x86_64-unknown-linux-gnu, label: linux-x64 }
+    runs-on: ${{ matrix.os }}
+    permissions: {}  # build jobs only need read; no GH write needed
+    steps:
+      # RED-TEAM H1: all third-party actions pinned to commit SHA.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable @ 2026-06-05
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux deps
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev \
+            libssl-dev
+
+      - id: sidecar-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: src-tauri/binaries
+          # Cache key includes both script + checksum file so any version
+          # bump or checksum rewrite invalidates the cache automatically.
+          key: ccusage-sidecars-${{ hashFiles('scripts/fetch-ccusage-sidecars.sh', 'scripts/ccusage-sidecars.sha256') }}
+
+      - name: Fetch ccusage sidecars
+        if: steps.sidecar-cache.outputs.cache-hit != 'true'
+        run: bash scripts/fetch-ccusage-sidecars.sh
+
+      - name: Verify sidecar checksums  # RED-TEAM C1
+        run: |
+          cd src-tauri/binaries
+          shasum -a 256 -c ../../scripts/ccusage-sidecars.sha256
+
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          workspaces: 'src-tauri -> target'
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5  # v0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS signing — phase 4 scaffold; absent secrets = unsigned build.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          args: --target ${{ matrix.target }}
+
+      - name: Upload bundle artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: bundle-${{ matrix.label }}
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app.tar.gz
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.app.tar.gz.sig
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage.sig
+          if-no-files-found: error
+
+  publish:
+    needs: [resolve-tag, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # RED-TEAM H1: only this job gets release-write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: 20
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          path: artifacts
+
+      - name: Build latest.json
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          node scripts/build-latest-json.mjs \
+            "${{ needs.resolve-tag.outputs.tag }}" \
+            artifacts \
+            > latest.json
+          cat latest.json
+
+      - name: Upload all assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve-tag.outputs.tag }}
+        run: |
+          # Release shell already exists (created by release-please merge).
+          # `gh release upload --clobber` is idempotent on re-runs.
+          gh release upload "$TAG" --clobber \
+            artifacts/**/*.dmg \
+            artifacts/**/*.app.tar.gz \
+            artifacts/**/*.app.tar.gz.sig \
+            artifacts/**/*.deb \
+            artifacts/**/*.AppImage \
+            artifacts/**/*.AppImage.sig \
+            latest.json
