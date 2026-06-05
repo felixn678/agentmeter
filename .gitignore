@@ -28,3 +28,7 @@ dist-ssr
 plans/
 release-manifest.json
 .repomixignore
+
+# Mobile icon sets from `tauri icon` — agentmeter targets desktop only (mac + ubuntu)
+src-tauri/icons/android/
+src-tauri/icons/ios/
