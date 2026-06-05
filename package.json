@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "release:build": "gh workflow run release-build.yml -f tag=v$(node -p \"require('./package.json').version\")",
+    "widget:build:mac": "test \"$(uname -s)\" = Darwin || { echo 'widget:build:mac is macOS-only'; exit 1; } && src-tauri/macos-widget/build-appex.sh && pnpm tauri build && src-tauri/macos-widget/embed-widget.sh",
     "test": "vitest run"
   },
   "dependencies": {

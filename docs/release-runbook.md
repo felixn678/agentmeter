@@ -127,3 +127,9 @@ To remove this UX friction permanently, enable Apple code signing — see [relea
 - [Tauri updater plugin v2](https://v2.tauri.app/plugin/updater/)
 - [release-please-action](https://github.com/googleapis/release-please-action)
 - Apple Developer ID setup: [release-signing-setup.md](release-signing-setup.md) (deferred)
+
+## macOS WidgetKit widget (not in CI yet)
+
+The native WidgetKit widget (`src-tauri/macos-widget/`) is **NOT** part of the CI release builds — it's a separate local build feature that requires Xcode and a free Apple ID signing identity. The CI-shipped `.dmg`/`.app` contain only the host Tauri app; the widget is added by running `pnpm widget:build:mac` on a Mac after `pnpm tauri build`.
+
+This boundary moves in the deferred Apple Developer ID phase: signed CI builds will embed the widget by default and ship a single signed bundle.

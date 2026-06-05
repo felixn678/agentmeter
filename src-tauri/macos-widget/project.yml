@@ -1,0 +1,48 @@
+# XcodeGen config for the agentmeter macOS WidgetKit extension.
+# Generate the .xcodeproj on a Mac with:
+#   brew install xcodegen
+#   cd src-tauri/macos-widget && xcodegen generate
+#
+# The generated AgentmeterWidget.xcodeproj is gitignored — only this yaml is
+# tracked, so the project layout stays editable cross-platform.
+
+name: AgentmeterWidget
+
+options:
+  bundleIdPrefix: com.agentmeter.app
+  # macOS 14 (Sonoma) is required for SwiftUI's `containerBackground` modifier
+  # used by Views.swift. The host Tauri app stays on macOS 11; this is per
+  # widget-extension only — on macOS 11–13 the widget simply won't load
+  # (PlugInKit rejects it silently) while the rest of the app still runs.
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # The user fills DEVELOPMENT_TEAM from Xcode → Preferences → Accounts (their
+    # free Apple ID team). build-appex.sh accepts it via xcodebuild override.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  AgentmeterWidget:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.agentmeter.app.widget
+        INFOPLIST_FILE: Info.plist
+        CODE_SIGN_ENTITLEMENTS: AgentmeterWidget.entitlements
+        # Embed the Swift runtime so the appex runs under any /Applications/agentmeter.app
+        # whose host doesn't link Swift itself.
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: "YES"
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework

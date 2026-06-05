@@ -129,6 +129,16 @@ Quick reference after merging a Release PR:
 pnpm release:build   # builds + uploads installers + latest.json to the new tag
 ```
 
+## macOS WidgetKit widget (optional, local build)
+
+Native Notification Center / Desktop widget showing today / week / month / burn rate. Mac-only, local build with free Apple ID. See **[src-tauri/macos-widget/README.md](src-tauri/macos-widget/README.md)** for one-shot:
+
+```bash
+pnpm widget:build:mac   # builds widget + tauri app, embeds .appex, re-signs deep
+```
+
+The macOS CI release (`pnpm release:build`) does **not** ship the widget — it's a local-build feature until paid Apple Developer ID signing lands.
+
 ## License
 
 [MIT](LICENSE) © 2026 Felix Nguyen.

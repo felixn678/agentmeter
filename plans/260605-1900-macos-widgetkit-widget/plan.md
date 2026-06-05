@@ -49,8 +49,8 @@ Linux).
 | Phase | Name | Status |
 |-------|------|--------|
 | 1 | [Snapshot Data Bridge](./phase-01-snapshot-data-bridge.md) | Completed |
-| 2 | [Swift WidgetKit Widget](./phase-02-swift-widgetkit-widget.md) | Pending |
-| 3 | [Bundling & Local Build](./phase-03-bundling-local-build.md) | Pending |
+| 2 | [Swift WidgetKit Widget](./phase-02-swift-widgetkit-widget.md) | Completed |
+| 3 | [Bundling & Local Build](./phase-03-bundling-local-build.md) | Completed |
 | 4 | [Future: Developer ID Distribution](./phase-04-future-developer-id-distribution.md) | Pending |
 
 Phase 1 is the only phase touching shared Rust code and is independently shippable on

@@ -1,10 +1,11 @@
 ---
 phase: 2
-title: "Swift WidgetKit Widget"
-status: pending
+title: Swift WidgetKit Widget
+status: completed
 priority: P2
-effort: "1-2d"
-dependencies: [1]
+effort: 1-2d
+dependencies:
+  - 1
 ---
 
 # Phase 2: Swift WidgetKit Widget

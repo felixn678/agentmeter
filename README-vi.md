@@ -126,6 +126,16 @@ Quick reference sau khi merge Release PR:
 pnpm release:build   # build + upload installers + latest.json vào tag mới
 ```
 
+## macOS WidgetKit widget (optional, local build)
+
+Widget native Notification Center / Desktop hiện today / week / month / burn rate. Mac-only, build local với Apple ID free. Xem **[src-tauri/macos-widget/README-vi.md](src-tauri/macos-widget/README-vi.md)** cho one-shot:
+
+```bash
+pnpm widget:build:mac   # build widget + tauri app, embed .appex, re-sign deep
+```
+
+Release qua macOS CI (`pnpm release:build`) **KHÔNG** ship widget — đây là feature local-build đến khi có paid Apple Developer ID.
+
 ## Giấy phép
 
 [MIT](LICENSE) © 2026 Felix Nguyen.

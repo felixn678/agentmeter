@@ -127,3 +127,9 @@ Muốn không còn UX friction → enable Apple code signing — xem [release-si
 - [Tauri updater plugin v2](https://v2.tauri.app/plugin/updater/)
 - [release-please-action](https://github.com/googleapis/release-please-action)
 - Apple Developer ID setup: [release-signing-setup.md](release-signing-setup.md) (deferred)
+
+## macOS WidgetKit widget (chưa nằm trong CI)
+
+Widget WidgetKit native (`src-tauri/macos-widget/`) **KHÔNG** thuộc CI release build — đó là feature local-build riêng cần Xcode + signing identity Apple ID free. CI-shipped `.dmg`/`.app` chỉ chứa host Tauri app; widget được add bằng cách chạy `pnpm widget:build:mac` trên Mac sau `pnpm tauri build`.
+
+Ranh giới này sẽ dịch chuyển khi Apple Developer ID phase được làm: CI signed build sẽ embed widget mặc định + ship 1 bundle signed.
