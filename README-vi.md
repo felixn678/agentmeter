@@ -44,9 +44,22 @@ tính sẵn và ghi dữ liệu ra một file ở vị trí chuẩn của OS; wi
 | 3 — Widget cross-platform | Cửa sổ Tauri luôn-nổi kiểu widget | Mac + Ubuntu | ⬜ |
 | 4 — Widget native | WidgetKit (Swift) cho Mac; GNOME extension (GJS) cho Ubuntu | Riêng từng OS | ⬜ |
 
+## Cách đọc dữ liệu usage
+
+App **nhúng sẵn binary standalone của ccusage** dưới dạng Tauri sidecar, nên bản đã cài
+đọc dữ liệu **không cần Node hay ccusage trên máy**. Nếu sidecar thiếu (vd lúc dev chưa
+fetch) thì fallback về `npx ccusage@latest`.
+
+Các binary sidecar **không commit** (~13MB) — fetch trước khi build:
+
+```bash
+bash scripts/fetch-ccusage-sidecars.sh   # ghi ra src-tauri/binaries/ccusage-<target-triple>
+```
+
 ## Yêu cầu hệ thống
 
-- **Node.js** (để chạy `ccusage` qua `npx`).
+- **Node.js + npm** — để build frontend và fetch sidecar (chỉ lúc build; bản đã cài
+  **không cần Node** lúc chạy).
 - **Rust** toolchain.
 - **Ubuntu/Linux:** cần thư viện hệ thống của Tauri:
   ```bash
@@ -68,5 +81,6 @@ npm run tauri dev
 ## Build
 
 ```bash
+bash scripts/fetch-ccusage-sidecars.sh   # một lần, nếu src-tauri/binaries/ trống
 npm run tauri build
 ```
