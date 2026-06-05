@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/felixn678/agentmeter/compare/v0.5.0...v0.6.0) (2026-06-05)
+
+
+### Features
+
+* **macos-widget:** snapshot data bridge to widget sandbox container ([e268d85](https://github.com/felixn678/agentmeter/commit/e268d8580d6b3894cd160bf0aeeda9f23de589e4))
+* **macos-widget:** WidgetKit extension + local pipeline (Phase 2 + 3) ([4d222c7](https://github.com/felixn678/agentmeter/commit/4d222c76fdd7918f46be21b38581f1c34d4991f5))
+
+
+### Bug Fixes
+
+* **macos-widget:** real-Mac signing fixes for build-appex.sh ([6ef7155](https://github.com/felixn678/agentmeter/commit/6ef7155f40c83bc43ed500c7cab7f2018340efd7))
+
 ## [0.5.0](https://github.com/felixn678/agentmeter/compare/v0.4.1...v0.5.0) (2026-06-05)
 
 
