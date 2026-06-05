@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/felixn678/agentmeter/compare/v0.2.0...v0.3.0) (2026-06-05)
+
+
+### Features
+
+* floating desktop widget window ([b0fe8bf](https://github.com/felixn678/agentmeter/commit/b0fe8bfa9d62ee392564ecdddea99f4529849e2d))
+* **updater:** integrate tauri-plugin-updater v2 with signing + .deb guard ([a24f033](https://github.com/felixn678/agentmeter/commit/a24f033e222aba34546035828476f40f205121bc))
+
 ## [0.2.0](https://github.com/felixn678/agentmeter/compare/v0.1.0...v0.2.0) (2026-06-05)
 
 
