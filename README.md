@@ -1,62 +1,67 @@
 # agentmeter
 
-App nhỏ gọn hiển thị lượng sử dụng & chi phí của các coding agent CLI (Claude
-Code, Codex, Gemini…) ngay trên **menubar/tray**, kèm một cửa sổ dashboard đầy đủ.
-Lấy cảm hứng từ app **Stats** trên macOS. Chạy trên **macOS** và **Ubuntu**.
+> 🌐 Tiếng Việt: [README-vi.md](README-vi.md)
 
-Dữ liệu lấy từ [`ccusage`](https://github.com/ryoppippi/ccusage) — công cụ đọc log
-local của các agent CLI. agentmeter không tự parse log mà gọi `ccusage --json` rồi
-trình bày lại, nhờ vậy tự động hỗ trợ mọi provider mà ccusage hỗ trợ.
+A lightweight app that shows the usage & cost of coding agent CLIs (Claude Code,
+Codex, Gemini…) right in the **menubar/tray**, plus a full dashboard window.
+Inspired by the **Stats** app on macOS. Runs on **macOS** and **Ubuntu**.
+
+Data comes from [`ccusage`](https://github.com/ryoppippi/ccusage) — a tool that
+reads the local logs of agent CLIs. agentmeter does not parse logs itself; it
+calls `ccusage --json` and presents the result, so it automatically supports every
+provider ccusage supports.
 
 ## Stack
 
-- **Lõi + tray:** Rust (Tauri v2) — `src-tauri/`
-- **Giao diện:** React + TypeScript + Vite — `src/`
-- Widget native (phase sau) tách theo nền tảng, đọc cùng dữ liệu lõi.
+- **Core + tray:** Rust (Tauri v2) — `src-tauri/`
+- **UI:** React + TypeScript + Vite — `src/`
+- Native widgets (later phase) are split per platform and read the same core data.
 
-## Kiến trúc
+## Architecture
 
-Nguyên tắc số 1: **tách lõi dữ liệu khỏi giao diện.** Mọi UI đều tiêu thụ cùng
-một nguồn dữ liệu chuẩn hoá, nên việc "đơn giản → phức tạp" chỉ là thêm UI, không
-phải viết lại.
+Rule #1: **separate the data core from the UI.** Every UI consumes the same
+normalized data source, so going "simple → complex" is just adding UI, never a
+rewrite.
 
 ```
 agentmeter/
 ├─ src/              # React + TS: tray dropdown (Phase 1) + dashboard (Phase 2)
-├─ src-tauri/        # Rust: lõi gọi ccusage --json, parse, expose qua command + tray
-│  └─ src/ccusage.rs # toàn bộ logic chạy & parse ccusage (không dính UI)
-├─ shared/           # SCHEMA.md — hợp đồng dữ liệu dùng chung cho mọi UI
-├─ macos-widget/     # (Phase 4) WidgetKit/Swift — chỉ build trên macOS
-└─ gnome-extension/  # (Phase 4) GJS — widget native cho GNOME/Ubuntu
+├─ src-tauri/        # Rust: core runs ccusage --json, parses, exposes via command + tray
+│  └─ src/ccusage.rs # all the run & parse logic for ccusage (no UI here)
+├─ shared/           # SCHEMA.md — the shared data contract for every UI
+├─ macos-widget/     # (Phase 4) WidgetKit/Swift — macOS only
+└─ gnome-extension/  # (Phase 4) GJS — native widget for GNOME/Ubuntu
 ```
 
-Widget native **không tự chạy ccusage** (extension bị giới hạn tài nguyên). Lõi sẽ
-tính sẵn và ghi dữ liệu ra một file ở vị trí chuẩn của OS; widget chỉ đọc file đó.
+Native widgets **do not run ccusage themselves** (extensions are resource-limited).
+The core computes and writes the data to a file at the OS standard location; the
+widget only reads that file.
 
-## Lộ trình
+## Roadmap
 
-| Phase | Nội dung | Nền tảng | Trạng thái |
-|-------|----------|----------|------------|
-| 1 — MVP | Tray icon + dropdown hiện chi phí hôm nay; cửa sổ liệt kê theo ngày/tuần/tháng | Mac + Ubuntu | ✅ đang làm |
-| 2 — Dashboard | Chart line/bar/pie, filter theo model & agent | Mac + Ubuntu | ⬜ |
-| 3 — Widget cross-platform | Cửa sổ Tauri luôn-nổi kiểu widget | Mac + Ubuntu | ⬜ |
-| 4 — Widget native | WidgetKit (Swift) cho Mac; GNOME extension (GJS) cho Ubuntu | Riêng từng OS | ⬜ |
+| Phase | Scope | Platforms | Status |
+|-------|-------|-----------|--------|
+| 1 — MVP | Tray icon + dropdown showing today's cost; window listing by day/week/month | Mac + Ubuntu | ✅ done |
+| 2 — Dashboard | Line/bar/pie charts, filter by model & agent | Mac + Ubuntu | ⬜ |
+| 3 — Cross-platform widget | Always-on-top Tauri widget window | Mac + Ubuntu | ⬜ |
+| 4 — Native widget | WidgetKit (Swift) for Mac; GNOME extension (GJS) for Ubuntu | Per-OS | ⬜ |
 
-## Yêu cầu hệ thống
+## System requirements
 
-- **Node.js** (để chạy `ccusage` qua `npx`).
+- **Node.js** (to run `ccusage` via `npx`).
 - **Rust** toolchain.
-- **Ubuntu/Linux:** cần thư viện hệ thống của Tauri:
+- **Ubuntu/Linux:** Tauri's system libraries:
   ```bash
   sudo apt update
   sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget file \
     libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
   ```
-  `libayatana-appindicator3-dev` cần cho tray. Trên GNOME (Ubuntu mặc định) có thể
-  phải cài thêm extension **AppIndicator** để icon hiện trên top-bar.
+  `libayatana-appindicator3-dev` is needed for the tray. On GNOME (Ubuntu default)
+  you may also need to install the **AppIndicator** extension for the icon to show
+  in the top bar.
 - **macOS:** Xcode Command Line Tools.
 
-## Chạy thử (dev)
+## Run (dev)
 
 ```bash
 npm install
