@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ClaudeKit engineer kit (vendored — reproducible via `ck init --kit engineer`)
+.claude/
+plans/
+release-manifest.json
+.repomixignore
