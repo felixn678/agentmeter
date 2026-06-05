@@ -57,9 +57,9 @@ change one side, update the other and `shared/SCHEMA.md`.
 ## Run / build
 
 ```bash
-npm install            # first time
-npm run tauri dev      # run app (Vite + Tauri)
-npm run tauri build    # production build
+pnpm install           # first time
+pnpm tauri dev         # run app (Vite + Tauri)
+pnpm tauri build       # production build
 ```
 
 System deps (already installed on this machine; needed on a fresh Ubuntu box):

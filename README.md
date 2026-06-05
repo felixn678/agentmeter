@@ -77,13 +77,13 @@ bash scripts/fetch-ccusage-sidecars.sh   # writes src-tauri/binaries/ccusage-<ta
 ## Run (dev)
 
 ```bash
-npm install
-npm run tauri dev
+pnpm install
+pnpm tauri dev
 ```
 
 ## Build
 
 ```bash
 bash scripts/fetch-ccusage-sidecars.sh   # once, if src-tauri/binaries/ is empty
-npm run tauri build
+pnpm tauri build
 ```

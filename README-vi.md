@@ -74,13 +74,13 @@ bash scripts/fetch-ccusage-sidecars.sh   # ghi ra src-tauri/binaries/ccusage-<ta
 ## Chạy thử (dev)
 
 ```bash
-npm install
-npm run tauri dev
+pnpm install
+pnpm tauri dev
 ```
 
 ## Build
 
 ```bash
 bash scripts/fetch-ccusage-sidecars.sh   # một lần, nếu src-tauri/binaries/ trống
-npm run tauri build
+pnpm tauri build
 ```
