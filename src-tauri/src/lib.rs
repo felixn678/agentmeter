@@ -6,7 +6,7 @@ use ccusage::{Granularity, UsageReport};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    Manager,
+    Emitter, Manager, WindowEvent,
 };
 
 /// Command for the frontend: fetch a report at "daily" | "weekly" | "monthly".
@@ -31,16 +31,25 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![get_usage, get_blocks])
+        // Closing the window hides it (the app stays in the tray and keeps running,
+        // so budget/notification checks keep firing). Quit via the tray menu.
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.hide();
+                api.prevent_close();
+            }
+        })
         .setup(|app| {
             // --- Tray menu ---
             let show = MenuItem::with_id(app, "show", "Open agentmeter", true, None::<&str>)?;
+            let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &settings, &quit])?;
 
             // --- Tray icon ---
-            // `title` shows text directly in the menubar (well supported on macOS;
-            // may be hidden on GNOME).
             let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
@@ -54,6 +63,13 @@ pub fn run() {
                             let _ = w.set_focus();
                         }
                     }
+                    "settings" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                            let _ = w.emit("open-settings", ());
+                        }
+                    }
                     _ => {}
                 })
                 .build(app)?;
@@ -62,7 +78,8 @@ pub fn run() {
             let handle = app.handle().clone();
             let tray_handle = tray.clone();
             std::thread::spawn(move || {
-                let result = tauri::async_runtime::block_on(ccusage::fetch(&handle, Granularity::Daily));
+                let result =
+                    tauri::async_runtime::block_on(ccusage::fetch(&handle, Granularity::Daily));
                 match result {
                     Ok(report) => {
                         if let Some(entry) = ccusage::latest_entry(&report) {

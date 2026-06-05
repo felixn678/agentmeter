@@ -6,6 +6,8 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "store:default",
+    "notification:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [{ "name": "binaries/ccusage", "sidecar": true, "args": true }]

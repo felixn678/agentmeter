@@ -1,7 +1,9 @@
-import { useState } from "react";
-import { MeterIcon, WarningIcon, EmptyIcon } from "./dashboard-icons";
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { MeterIcon, WarningIcon, EmptyIcon, GearIcon } from "./dashboard-icons";
 import { Card } from "./components/ui/card";
 import { SegmentedControl } from "./components/segmented-control";
+import { SettingsPanel } from "./components/settings-panel";
 import { NowCard } from "./components/now-card";
 import { CostTrendChart } from "./components/charts/cost-trend-chart";
 import { ModelBreakdownChart } from "./components/charts/model-breakdown-chart";
@@ -14,6 +16,7 @@ import {
 import { dotColor, fmtTokensCompact, fmtTokensFull, fmtUsd, shortModel } from "./lib/format";
 import { useCountUp } from "./lib/use-count-up";
 import { useUsageReports } from "./lib/use-usage-reports";
+import { useBudgetAlerts } from "./lib/use-budget-alerts";
 import { trendVsAverage } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
 
@@ -76,6 +79,17 @@ function App() {
   const [view, setView] = useState<View>("today");
   const { reports, activeBlock, loading, error } = useUsageReports();
   const report = reports[viewGranularity(view)] ?? null;
+  const [showSettings, setShowSettings] = useState(false);
+
+  useBudgetAlerts(reports);
+
+  // Open settings when the tray "Settings" item is clicked.
+  useEffect(() => {
+    const unlisten = listen("open-settings", () => setShowSettings(true));
+    return () => {
+      void unlisten.then((f) => f());
+    };
+  }, []);
 
   const isToday = view === "today";
   const todayEntry =
@@ -116,7 +130,17 @@ function App() {
           </span>
           <h1 className="text-base font-[650] tracking-[-0.01em]">agentmeter</h1>
         </div>
-        <SegmentedControl value={view} onChange={setView} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowSettings(true)}
+            aria-label="Settings"
+            title="Settings"
+            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-inset hover:text-fg"
+          >
+            <GearIcon />
+          </button>
+          <SegmentedControl value={view} onChange={setView} />
+        </div>
       </header>
 
       {activeBlock && (
@@ -206,6 +230,8 @@ function App() {
           ))}
         </ul>
       )}
+
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
     </main>
   );
 }
