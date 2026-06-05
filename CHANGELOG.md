@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.4.0](https://github.com/felixn678/agentmeter/compare/v0.3.0...v0.4.0) (2026-06-05)
+
+
+### Features
+
+* auto-refresh the tray title on the fetch interval ([14c9e1b](https://github.com/felixn678/agentmeter/commit/14c9e1b36cf0b521b5947dd69c766cd6accfba4b))
+* categorized settings hub ([693ed31](https://github.com/felixn678/agentmeter/commit/693ed31be3ab4fb96caeb2152936bb2059980da0))
+
+
+### Bug Fixes
+
+* **ci:** drop tauri-action, build directly so sigs survive for upload ([fd62d24](https://github.com/felixn678/agentmeter/commit/fd62d24287d0972a483d24571d244ac4f68f8cf5))
+* **ci:** find updater sig defensively + add debug ls ([85d436b](https://github.com/felixn678/agentmeter/commit/85d436b22ec3f256cb173c455af00efb9c882578))
+* **ci:** pass GITHUB_TOKEN to tauri-action for release upload ([2c81232](https://github.com/felixn678/agentmeter/commit/2c81232c4b5f785ee3b3d8bd24c79af39ade0e2f))
+* **ci:** release-build trigger workflow_dispatch only ([87ee9bc](https://github.com/felixn678/agentmeter/commit/87ee9bc5212b40b030e5bd93b9972cb3674c7c5e))
+* **ci:** remove duplicate env: block in upload step ([b901ddc](https://github.com/felixn678/agentmeter/commit/b901ddcf5f4db27725404ea842d262229e518a0a))
+* **ci:** revert flow-style rust-toolchain with: block ([85dab2b](https://github.com/felixn678/agentmeter/commit/85dab2b374bf7f503af5c7d277f75f617add3ce1))
+* **ci:** upload .sig files + build latest.json manually ([4f81bca](https://github.com/felixn678/agentmeter/commit/4f81bcaf7c2762d6d2c96438f9a3a644f974c961))
+* **release:** drop empty APPLE_* env vars so macOS unsigned builds succeed ([669a1b1](https://github.com/felixn678/agentmeter/commit/669a1b16714781e5591856ff2a770f1c97f61c97))
+* **updater:** enable createUpdaterArtifacts so Tauri emits .app.tar.gz + .sig ([ccedb28](https://github.com/felixn678/agentmeter/commit/ccedb28591affec01b105b09e932cb1f1b0251ca))
+
 ## [0.3.0](https://github.com/felixn678/agentmeter/compare/v0.2.0...v0.3.0) (2026-06-05)
 
 
