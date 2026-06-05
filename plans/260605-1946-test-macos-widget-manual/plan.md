@@ -1,14 +1,14 @@
 ---
-title: "Manual test plan for macOS WidgetKit widget"
-description: ""
+title: Manual test plan for macOS WidgetKit widget
+description: ''
 status: pending
 priority: P2
-branch: "master"
+branch: master
 tags: []
 blockedBy: []
 blocks: []
-created: "2026-06-05T13:01:58.622Z"
-createdBy: "ck:plan"
+created: '2026-06-05T13:01:58.622Z'
+createdBy: 'ck:plan'
 source: skill
 ---
 
@@ -77,7 +77,7 @@ Widget doesn't show in gallery / shows blank
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | [Verify snapshot file write (Phase-1)](./phase-01-verify-snapshot-file-write-phase-1.md) | Pending |
+| 1 | [Verify snapshot file write (Phase-1)](./phase-01-verify-snapshot-file-write-phase-1.md) | Completed |
 | 2 | [Verify widget UI renders (Phase-2)](./phase-02-verify-widget-ui-renders-phase-2.md) | Pending |
 | 3 | [Verify end-to-end build pipeline (Phase-3)](./phase-03-verify-end-to-end-build-pipeline-phase-3.md) | Pending |
 

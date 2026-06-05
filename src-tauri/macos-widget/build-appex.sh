@@ -42,15 +42,48 @@ if [[ -z "${CODESIGN_ID:-}" ]]; then
   echo "→ Auto-picked signing identity: $CODESIGN_ID"
 fi
 
+# Extract the 10-char team id from the chosen identity's certificate.
+#
+# The Subject DN of an Apple Development cert looks like
+#   UID=..., CN=Apple Development: email (DISPLAY_ID), OU=TEAM_ID, O=Name, C=US
+# The string in `()` after the email is a DISPLAY id Xcode shows in some UIs,
+# NOT the team Xcode uses for provisioning. The actual team id is the **OU**
+# value — that is the one Xcode's accounts and provisioning profiles key on.
+if [[ -z "${DEVELOPMENT_TEAM:-}" ]]; then
+  DEVELOPMENT_TEAM=$(
+    security find-certificate -c "$CODESIGN_ID" -p 2>/dev/null \
+      | openssl x509 -noout -subject 2>/dev/null \
+      | grep -Eo 'OU *= *[A-Z0-9]{10}' \
+      | awk -F'=' '{gsub(/ /,"",$2); print $2}' \
+      | head -n1
+  )
+  if [[ -z "$DEVELOPMENT_TEAM" ]]; then
+    echo "::error::Could not extract OU (team id) from the certificate for CODESIGN_ID=$CODESIGN_ID" >&2
+    echo "Pass DEVELOPMENT_TEAM=\"<team>\" explicitly." >&2
+    exit 1
+  fi
+  echo "→ Using DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM"
+fi
+
 DERIVED="$(pwd)/build"
 rm -rf "$DERIVED"
 
+# With CODE_SIGN_STYLE=Automatic, Xcode picks the cert itself from the team.
+# Don't override CODE_SIGN_IDENTITY here — Xcode auto-translates "Apple
+# Development" to "Mac Development" for macOS targets and then fails because
+# there is no separate Mac Development cert on a modern (post 2021) keychain.
+#
+# -allowProvisioningUpdates lets xcodebuild generate the free-team provisioning
+# profile on demand. Without it the first build on a new machine fails with
+# "No signing certificate 'Mac Development' found" because Xcode hasn't been
+# able to fetch a profile that maps the cert to the bundle id yet.
 xcodebuild \
   -project AgentmeterWidget.xcodeproj \
   -scheme AgentmeterWidget \
   -configuration Release \
   -derivedDataPath "$DERIVED" \
-  CODE_SIGN_IDENTITY="$CODESIGN_ID" \
+  -allowProvisioningUpdates \
+  DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
   CODE_SIGN_STYLE=Automatic \
   | sed -E 's/^/   /'
 

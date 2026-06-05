@@ -1,9 +1,9 @@
 ---
 phase: 1
-title: "Verify snapshot file write (Phase-1)"
-status: pending
+title: Verify snapshot file write (Phase-1)
+status: completed
 priority: P1
-effort: "5min"
+effort: 5min
 dependencies: []
 ---
 
