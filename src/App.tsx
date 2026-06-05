@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import { MeterIcon, WarningIcon, EmptyIcon, GearIcon } from "./dashboard-icons";
 import { Card } from "./components/ui/card";
 import { SegmentedControl } from "./components/segmented-control";
@@ -20,6 +21,7 @@ import { useBudgetAlerts } from "./lib/use-budget-alerts";
 import { useAppConfig } from "./lib/use-app-config";
 import { trendVsAverage } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
+import { trayTitle } from "./lib/tray-title";
 import { checkForUpdate } from "./lib/updater";
 
 function EntryRow({ entry }: { entry: UsageEntry }) {
@@ -107,6 +109,21 @@ function App() {
       void unlisten.then((f) => f());
     };
   }, []);
+
+  // Keep the tray title in sync with the chosen metric. Fires on metric change and
+  // on each data revalidation, so the tray follows the configured interval (and
+  // pauses while hidden) without a second timer. Skip until data exists so we don't
+  // overwrite the launch number (set by Rust) with a $0.00 flash. A ref dedups the
+  // push so the two state updates per load tick (reports + activeBlock) don't emit
+  // duplicate IPC when the resulting title is unchanged.
+  const lastTrayTitle = useRef<string | null>(null);
+  useEffect(() => {
+    if (Object.keys(reports).length === 0 && activeBlock === null) return;
+    const title = trayTitle(config.trayMetric, reports, activeBlock);
+    if (title === lastTrayTitle.current) return;
+    lastTrayTitle.current = title;
+    void invoke("set_tray_title", { title }).catch(() => {});
+  }, [config.trayMetric, reports, activeBlock]);
 
   const isToday = view === "today";
   const todayEntry =

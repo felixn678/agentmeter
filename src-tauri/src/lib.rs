@@ -72,11 +72,15 @@ fn is_auto_update_supported() -> bool {
     }
 }
 
-/// Command for the frontend: recompute the tray title after the user changes the
-/// chosen tray metric in Settings.
+/// Command for the frontend: set the tray title directly. The frontend computes it
+/// from data it has already loaded, so we avoid spawning ccusage a second time per
+/// refresh. (Startup still computes the title in Rust so the tray shows a number
+/// immediately, before the webview's first load.)
 #[tauri::command]
-async fn update_tray_metric(app: AppHandle) {
-    refresh_tray_title(&app).await;
+fn set_tray_title(app: AppHandle, title: String) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_title(Some(title));
+    }
 }
 
 /// Read the user's chosen tray metric from the store, defaulting to "today".
@@ -139,7 +143,7 @@ pub fn run() {
             get_blocks,
             toggle_widget,
             is_auto_update_supported,
-            update_tray_metric
+            set_tray_title
         ])
         // Closing the window hides it (the app stays in the tray and keeps running,
         // so budget/notification checks keep firing). Quit via the tray menu.

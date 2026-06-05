@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import type { Settings, TrayMetric } from "../../lib/settings";
 import { ChoiceGroup, Row, Section, type Choice } from "./settings-controls";
 
@@ -11,12 +10,11 @@ const METRIC_OPTIONS: Choice<TrayMetric>[] = [
 
 type Props = { config: Settings; update: (patch: Partial<Settings>) => void };
 
-// Tray category: pick which metric the tray title shows. Changing it asks the Rust
-// side to recompute the title immediately (it also reads this on startup).
+// Tray category: pick which metric the tray title shows. Changing the metric updates
+// the config; the dashboard's tray-sync effect repaints the tray title from it.
 export function TraySettings({ config, update }: Props) {
   function setMetric(metric: TrayMetric) {
     update({ trayMetric: metric });
-    void invoke("update_tray_metric").catch(() => {});
   }
 
   return (
