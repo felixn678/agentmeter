@@ -87,9 +87,44 @@ pnpm tauri dev
 > the sidecar for the current target triple must exist on disk. Skip it and the build
 > fails with `resource path 'binaries/ccusage-<triple>' doesn't exist`.
 
-## Build
+## Build (local)
 
 ```bash
 bash scripts/fetch-ccusage-sidecars.sh   # once, if src-tauri/binaries/ is empty
 pnpm tauri build
+```
+
+## Install (end users)
+
+Download the matching installer from the [latest GitHub Release](https://github.com/felixn678/agentmeter/releases/latest):
+
+- **macOS Apple Silicon:** `agentmeter_X.Y.Z_aarch64.dmg`
+- **macOS Intel:** `agentmeter_X.Y.Z_x64.dmg`
+- **Ubuntu/Debian:** `agentmeter_X.Y.Z_amd64.deb` (use `sudo apt upgrade agentmeter` to update — auto-update disabled by design for dpkg installs)
+- **Linux portable:** `agentmeter_X.Y.Z_amd64.AppImage` (auto-update works in-place)
+
+Minimum: macOS 11 (Big Sur), Ubuntu 22.04+ (needs `libwebkit2gtk-4.1-0`).
+
+### First launch on macOS (unsigned builds)
+
+agentmeter is currently unsigned (no Apple Developer ID). The first launch needs a one-time bypass:
+
+1. Finder → Applications → **right-click** `agentmeter` → **Open**
+2. Dialog "macOS cannot verify the developer…" → click **Open**
+3. Done. Future launches work via double-click; auto-update keeps the bypass valid.
+
+Terminal alternative — strip quarantine xattr:
+```bash
+xattr -dr com.apple.quarantine /Applications/agentmeter.app
+```
+
+If the right-click dialog won't open: System Settings → Privacy & Security → scroll to "agentmeter was blocked…" → **Open Anyway**.
+
+## Releasing
+
+Tag-driven release flow (release-please + matrix build + minisign-signed auto-update). See **[docs/release-runbook.md](docs/release-runbook.md)** for the full procedure.
+
+Quick reference after merging a Release PR:
+```bash
+pnpm release:build   # builds + uploads installers + latest.json to the new tag
 ```

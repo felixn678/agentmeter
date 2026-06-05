@@ -68,6 +68,12 @@ System deps (already installed on this machine; needed on a fresh Ubuntu box):
 **AppIndicator** shell extension to appear in the top bar (the window works
 regardless). Running `ccusage` needs **Node** on PATH.
 
+## Releases
+
+Versioning + CI/CD release flow (release-please + matrix build + minisign
+auto-update): **see [docs/release-runbook.md](docs/release-runbook.md)**.
+Quick path after merging a Release PR: `pnpm release:build`.
+
 ## ClaudeKit (tooling)
 
 This repo has the **ClaudeKit engineer kit** installed locally under `.claude/`

@@ -84,9 +84,44 @@ pnpm tauri dev
 > binary cho target triple hiện tại phải tồn tại trên đĩa. Bỏ qua sẽ lỗi
 > `resource path 'binaries/ccusage-<triple>' doesn't exist`.
 
-## Build
+## Build (local)
 
 ```bash
 bash scripts/fetch-ccusage-sidecars.sh   # một lần, nếu src-tauri/binaries/ trống
 pnpm tauri build
+```
+
+## Cài đặt (end user)
+
+Tải installer phù hợp từ [release mới nhất trên GitHub](https://github.com/felixn678/agentmeter/releases/latest):
+
+- **macOS Apple Silicon:** `agentmeter_X.Y.Z_aarch64.dmg`
+- **macOS Intel:** `agentmeter_X.Y.Z_x64.dmg`
+- **Ubuntu/Debian:** `agentmeter_X.Y.Z_amd64.deb` (update bằng `sudo apt upgrade agentmeter` — auto-update tắt sẵn cho dpkg install)
+- **Linux portable:** `agentmeter_X.Y.Z_amd64.AppImage` (auto-update in-place)
+
+Tối thiểu: macOS 11 (Big Sur), Ubuntu 22.04+ (cần `libwebkit2gtk-4.1-0`).
+
+### Lần đầu mở trên macOS (build unsigned)
+
+agentmeter hiện chưa có Apple Developer signing. Lần đầu mở cần bypass 1 lần:
+
+1. Finder → Applications → **right-click** `agentmeter` → **Open**
+2. Dialog "macOS cannot verify the developer…" → bấm **Open**
+3. Xong. Lần sau double-click bình thường; auto-update giữ nguyên bypass.
+
+Terminal — strip quarantine xattr:
+```bash
+xattr -dr com.apple.quarantine /Applications/agentmeter.app
+```
+
+Nếu right-click không mở được: System Settings → Privacy & Security → kéo xuống "agentmeter was blocked…" → **Open Anyway**.
+
+## Release
+
+Flow release theo tag (release-please + matrix build + auto-update ký minisign). Xem **[docs/release-runbook-vi.md](docs/release-runbook-vi.md)** cho quy trình đầy đủ.
+
+Quick reference sau khi merge Release PR:
+```bash
+pnpm release:build   # build + upload installers + latest.json vào tag mới
 ```
