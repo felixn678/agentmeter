@@ -1,9 +1,9 @@
 ---
 phase: 1
-title: "Snapshot Data Bridge"
-status: pending
+title: Snapshot Data Bridge
+status: completed
 priority: P1
-effort: "0.5-1d"
+effort: 0.5-1d
 dependencies: []
 ---
 

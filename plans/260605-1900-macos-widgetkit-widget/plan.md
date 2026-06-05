@@ -1,14 +1,20 @@
 ---
-title: "macOS WidgetKit Widget (free/local now, Developer ID later)"
-description: "Native macOS WidgetKit widget (small+medium) fed by a Rust-written snapshot; free/local signing now, paid Developer ID distribution deferred."
+title: 'macOS WidgetKit Widget (free/local now, Developer ID later)'
+description: >-
+  Native macOS WidgetKit widget (small+medium) fed by a Rust-written snapshot;
+  free/local signing now, paid Developer ID distribution deferred.
 status: pending
 priority: P2
-branch: "master"
-tags: [macos, widgetkit, swift, native]
+branch: master
+tags:
+  - macos
+  - widgetkit
+  - swift
+  - native
 blockedBy: []
 blocks: []
-created: "2026-06-05T12:14:32.913Z"
-createdBy: "ck:plan"
+created: '2026-06-05T12:14:32.913Z'
+createdBy: 'ck:plan'
 source: skill
 ---
 
@@ -42,7 +48,7 @@ Linux).
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | [Snapshot Data Bridge](./phase-01-snapshot-data-bridge.md) | Pending |
+| 1 | [Snapshot Data Bridge](./phase-01-snapshot-data-bridge.md) | Completed |
 | 2 | [Swift WidgetKit Widget](./phase-02-swift-widgetkit-widget.md) | Pending |
 | 3 | [Bundling & Local Build](./phase-03-bundling-local-build.md) | Pending |
 | 4 | [Future: Developer ID Distribution](./phase-04-future-developer-id-distribution.md) | Pending |

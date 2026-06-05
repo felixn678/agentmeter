@@ -1,5 +1,6 @@
 mod blocks;
 mod ccusage;
+mod snapshot;
 
 use blocks::ActiveBlock;
 use ccusage::{Granularity, UsageReport};
@@ -83,6 +84,17 @@ fn set_tray_title(app: AppHandle, title: String) {
     }
 }
 
+/// Persist the data the macOS WidgetKit widget reads. Frontend computes the
+/// snapshot from data it already has (DRY: mirrors the set_tray_title pattern,
+/// so we never spawn ccusage a second time per refresh). The write is
+/// best-effort — a failure is swallowed so the UI thread never blocks.
+#[tauri::command]
+fn write_widget_snapshot(snapshot: snapshot::WidgetSnapshot) {
+    if let Err(e) = snapshot::write(&snapshot) {
+        eprintln!("widget snapshot write failed: {e}");
+    }
+}
+
 /// Read the user's chosen tray metric from the store, defaulting to "today".
 fn tray_metric(app: &AppHandle) -> String {
     if let Ok(store) = app.store("agentmeter.json") {
@@ -143,7 +155,8 @@ pub fn run() {
             get_blocks,
             toggle_widget,
             is_auto_update_supported,
-            set_tray_title
+            set_tray_title,
+            write_widget_snapshot,
         ])
         // Closing the window hides it (the app stays in the tray and keeps running,
         // so budget/notification checks keep firing). Quit via the tray menu.

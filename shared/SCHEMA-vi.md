@@ -61,9 +61,48 @@ Serde serialize sang JSON **camelCase**.
 }
 ```
 
-## Ghi chú cho widget native (Phase 4)
+## WidgetSnapshot (cầu nối WidgetKit macOS)
 
-Widget native KHÔNG gọi ccusage trực tiếp. Lõi (Rust) sẽ định kỳ tính sẵn và ghi
-một snapshot JSON theo schema trên ra vị trí chuẩn của OS (ví dụ
-`~/.local/state/agentmeter/latest.json` trên Linux, App Group container trên macOS);
-widget chỉ đọc file đó. Vị trí cụ thể sẽ chốt khi bắt đầu Phase 4.
+Widget native KHÔNG gọi ccusage trực tiếp — nó chạy ở process sandbox riêng.
+App Tauri ghi sẵn một snapshot file cho widget đọc. Schema:
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-05T12:00:00Z",   // ISO-8601 UTC
+  "today":   { "cost": 7.50, "tokens": 604308 },
+  "week":    { "cost": 22.0, "tokens": 4231590 },
+  "month":   { "cost": 120.0, "tokens": 19284731 },
+  "trend":   { "pct": 38.0, "dir": "up" }, // today vs avg 7 ngày; dir = up|down|flat; null khi n<2 ngày
+  "burnRate": { "costPerHour": 4.25, "active": true }
+}
+```
+
+**Source of truth:** struct Rust trong
+[`../src-tauri/src/snapshot.rs`](../src-tauri/src/snapshot.rs); helper frontend
+ở `src/lib/widget-snapshot.ts` mirror lại. Write atomic (`snapshot.json.tmp` →
+rename).
+
+### Đường dẫn bridge (macOS, MVP)
+
+```
+~/Library/Containers/com.agentmeter.app.widget/Data/Library/Application Support/agentmeter/snapshot.json
+```
+
+- Widget bundle id: **`com.agentmeter.app.widget`** — single source of truth
+  cho path; target Xcode ở Phase-2 phải dùng đúng id này.
+- App Tauri (không sandbox) tự `mkdir -p` container path. Khi widget extension
+  chưa được install, write của app vẫn land — timeline reload đầu tiên của
+  widget sẽ thấy file.
+- Widget sandbox đọc container của chính nó tự do — không cần entitlement,
+  không cần App Group, không bị Apple team id prefix mismatch.
+
+App Groups (container `group.com.agentmeter.shared` portable với entitlement
+rõ ràng) defer sang phase paid-Developer-ID; free Apple team auto-prefix App
+Group id bằng team id, Rust writer dùng id cố định không match được.
+
+### Linux / Windows
+
+Command Rust compile cross-platform nhưng write là no-op ngoài macOS
+(`#[cfg(target_os = "macos")]`). Floating widget window cross-platform của
+Tauri đã cover Linux; GNOME extension bị bỏ.

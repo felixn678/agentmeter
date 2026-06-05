@@ -23,6 +23,7 @@ import { trendVsAverage } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
 import { trayTitle } from "./lib/tray-title";
 import { checkForUpdate } from "./lib/updater";
+import { buildWidgetSnapshot } from "./lib/widget-snapshot";
 
 function EntryRow({ entry }: { entry: UsageEntry }) {
   return (
@@ -124,6 +125,15 @@ function App() {
     lastTrayTitle.current = title;
     void invoke("set_tray_title", { title }).catch(() => {});
   }, [config.trayMetric, reports, activeBlock]);
+
+  // Refresh the macOS WidgetKit widget's snapshot file on each data revalidation
+  // (no-op on Linux/Windows — the Rust command is `#[cfg]`'d there). Guard on
+  // data presence so the widget doesn't see a zeroed snapshot during cold start.
+  useEffect(() => {
+    if (Object.keys(reports).length === 0 && activeBlock === null) return;
+    const snapshot = buildWidgetSnapshot(reports, activeBlock);
+    void invoke("write_widget_snapshot", { snapshot }).catch(() => {});
+  }, [reports, activeBlock]);
 
   const isToday = view === "today";
   const todayEntry =
