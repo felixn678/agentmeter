@@ -49,8 +49,8 @@ widget only reads that file.
 ## How usage data is read
 
 The app bundles ccusage's **prebuilt standalone binary** as a Tauri sidecar, so the
-shipped app reads usage data **without Node or ccusage installed**. If the sidecar is
-ever missing (e.g. during dev before it's fetched), it falls back to `npx ccusage@latest`.
+shipped app reads usage data **without Node or ccusage installed**. If the sidecar
+ever fails at runtime, the Rust core falls back to `npx ccusage@latest`.
 
 The sidecar binaries are not committed (~13MB) — fetch them before building:
 
@@ -78,8 +78,14 @@ bash scripts/fetch-ccusage-sidecars.sh   # writes src-tauri/binaries/ccusage-<ta
 
 ```bash
 pnpm install
+bash scripts/fetch-ccusage-sidecars.sh   # once, if src-tauri/binaries/ is empty
 pnpm tauri dev
 ```
+
+> The fetch step is **required for `tauri dev` too**, not only `tauri build` — Tauri
+> validates `externalBin` (declared in `src-tauri/tauri.conf.json`) at compile time, so
+> the sidecar for the current target triple must exist on disk. Skip it and the build
+> fails with `resource path 'binaries/ccusage-<triple>' doesn't exist`.
 
 ## Build
 

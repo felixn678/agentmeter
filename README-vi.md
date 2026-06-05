@@ -47,8 +47,8 @@ tính sẵn và ghi dữ liệu ra một file ở vị trí chuẩn của OS; wi
 ## Cách đọc dữ liệu usage
 
 App **nhúng sẵn binary standalone của ccusage** dưới dạng Tauri sidecar, nên bản đã cài
-đọc dữ liệu **không cần Node hay ccusage trên máy**. Nếu sidecar thiếu (vd lúc dev chưa
-fetch) thì fallback về `npx ccusage@latest`.
+đọc dữ liệu **không cần Node hay ccusage trên máy**. Nếu sidecar fail lúc runtime, lõi
+Rust sẽ fallback về `npx ccusage@latest`.
 
 Các binary sidecar **không commit** (~13MB) — fetch trước khi build:
 
@@ -75,8 +75,14 @@ bash scripts/fetch-ccusage-sidecars.sh   # ghi ra src-tauri/binaries/ccusage-<ta
 
 ```bash
 pnpm install
+bash scripts/fetch-ccusage-sidecars.sh   # một lần, nếu src-tauri/binaries/ trống
 pnpm tauri dev
 ```
+
+> Bước fetch sidecar **bắt buộc cho cả `tauri dev`**, không chỉ `tauri build` — Tauri
+> validate `externalBin` (khai báo trong `src-tauri/tauri.conf.json`) ở compile time, nên
+> binary cho target triple hiện tại phải tồn tại trên đĩa. Bỏ qua sẽ lỗi
+> `resource path 'binaries/ccusage-<triple>' doesn't exist`.
 
 ## Build
 
