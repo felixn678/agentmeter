@@ -72,6 +72,59 @@ fn is_auto_update_supported() -> bool {
     }
 }
 
+/// Command for the frontend: recompute the tray title after the user changes the
+/// chosen tray metric in Settings.
+#[tauri::command]
+async fn update_tray_metric(app: AppHandle) {
+    refresh_tray_title(&app).await;
+}
+
+/// Read the user's chosen tray metric from the store, defaulting to "today".
+fn tray_metric(app: &AppHandle) -> String {
+    if let Ok(store) = app.store("agentmeter.json") {
+        if let Some(metric) = store
+            .get("settings")
+            .and_then(|s| s.get("trayMetric").and_then(|v| v.as_str()).map(String::from))
+        {
+            return metric;
+        }
+    }
+    "today".to_string()
+}
+
+/// Latest-period cost formatted as a tray title, or a fallback on empty/error.
+async fn period_title(app: &AppHandle, g: Granularity) -> String {
+    match ccusage::fetch(app, g).await {
+        Ok(report) => match ccusage::latest_entry(&report) {
+            Some(entry) => format!("${:.2}", entry.total_cost),
+            None => "$0.00".to_string(),
+        },
+        Err(_) => "⚠".to_string(),
+    }
+}
+
+/// Compute the tray title for the currently configured metric.
+async fn compute_tray_title(app: &AppHandle) -> String {
+    match tray_metric(app).as_str() {
+        "week" => period_title(app, Granularity::Weekly).await,
+        "month" => period_title(app, Granularity::Monthly).await,
+        "burnRate" => match blocks::fetch_active(app).await {
+            Ok(Some(b)) => format!("${:.2}/hr", b.cost_per_hour),
+            Ok(None) => "$0.00/hr".to_string(),
+            Err(_) => "⚠".to_string(),
+        },
+        _ => period_title(app, Granularity::Daily).await,
+    }
+}
+
+/// Recompute and apply the tray title from the configured metric.
+async fn refresh_tray_title(app: &AppHandle) {
+    let title = compute_tray_title(app).await;
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_title(Some(title));
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -86,6 +139,7 @@ pub fn run() {
             get_blocks,
             toggle_widget,
             is_auto_update_supported,
+            update_tray_metric
         ])
         // Closing the window hides it (the app stays in the tray and keeps running,
         // so budget/notification checks keep firing). Quit via the tray menu.
@@ -108,8 +162,8 @@ pub fn run() {
                 &[&show, &widget, &settings, &check_update, &quit],
             )?;
 
-            // --- Tray icon ---
-            let tray = TrayIconBuilder::new()
+            // --- Tray icon --- (looked up later by id "main" to update its title)
+            let _tray = TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
                 .title("…")
@@ -150,24 +204,10 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Fetch today's cost in the background, then update the tray title.
+            // Fetch the configured metric in the background, then set the tray title.
             let handle = app.handle().clone();
-            let tray_handle = tray.clone();
             std::thread::spawn(move || {
-                let result =
-                    tauri::async_runtime::block_on(ccusage::fetch(&handle, Granularity::Daily));
-                match result {
-                    Ok(report) => {
-                        if let Some(entry) = ccusage::latest_entry(&report) {
-                            let _ = tray_handle.set_title(Some(format!("${:.2}", entry.total_cost)));
-                        } else {
-                            let _ = tray_handle.set_title(Some("$0.00"));
-                        }
-                    }
-                    Err(_) => {
-                        let _ = tray_handle.set_title(Some("⚠"));
-                    }
-                }
+                tauri::async_runtime::block_on(refresh_tray_title(&handle));
             });
 
             // Restore the widget window if it was visible last session.

@@ -8,6 +8,7 @@ export type BudgetInputs = {
   todaySpend: number;
   monthSpend: number;
   yesterdaySpend: number | null;
+  costSpike: boolean; // today's cost is well above the recent average
   now: Date;
 };
 
@@ -36,8 +37,9 @@ export function evaluate(
   }
 
   if (settings.alertsEnabled) {
-    crossThreshold("daily", settings.budgetDaily, inputs.todaySpend, state, notifications);
-    crossThreshold("monthly", settings.budgetMonthly, inputs.monthSpend, state, notifications);
+    const levels = [...settings.thresholds].sort((a, b) => b - a); // highest first
+    crossThreshold("daily", settings.budgetDaily, inputs.todaySpend, levels, state, notifications);
+    crossThreshold("monthly", settings.budgetMonthly, inputs.monthSpend, levels, state, notifications);
   }
 
   if (
@@ -53,33 +55,46 @@ export function evaluate(
     state.lastSummaryDate = dayKey;
   }
 
+  if (settings.costSpikeEnabled && inputs.costSpike && state.lastSpikeDate !== dayKey) {
+    notifications.push({
+      title: "agentmeter — cost spike",
+      body: `Today's spend (${fmtUsd(inputs.todaySpend)}) is well above your recent average.`,
+    });
+    state.lastSpikeDate = dayKey;
+  }
+
   return { notifications, state };
 }
 
+// Fire the highest configured threshold the spend has crossed but not yet alerted on.
+// The de-dup state stores the highest % already notified, so each level fires once.
 function crossThreshold(
   period: "daily" | "monthly",
   budget: number,
   spend: number,
+  levels: number[],
   state: NotifState,
   out: Notification[],
 ): void {
-  if (budget <= 0) return;
+  if (budget <= 0 || levels.length === 0) return;
   const key = period === "daily" ? "dailyThreshold" : "monthlyThreshold";
   const reached = state[key];
   const pct = (spend / budget) * 100;
   const label = period === "daily" ? "daily" : "monthly";
 
-  if (pct >= 100 && reached < 100) {
+  const crossed = levels.find((lvl) => pct >= lvl && reached < lvl);
+  if (crossed === undefined) return;
+
+  if (crossed >= 100) {
     out.push({
       title: "agentmeter — budget reached",
       body: `You've hit your ${label} budget: ${fmtUsd(spend)} / ${fmtUsd(budget)}.`,
     });
-    state[key] = 100;
-  } else if (pct >= 80 && reached < 80) {
+  } else {
     out.push({
       title: "agentmeter — budget warning",
       body: `${Math.round(pct)}% of your ${label} budget: ${fmtUsd(spend)} / ${fmtUsd(budget)}.`,
     });
-    state[key] = 80;
   }
+  state[key] = crossed;
 }

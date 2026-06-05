@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useUsageReports } from "../lib/use-usage-reports";
+import { useAppConfig } from "../lib/use-app-config";
 import { todayLocalDate } from "../lib/today";
 import { fmtUsd } from "../lib/format";
 import { trendVsAverage } from "../lib/trend";
@@ -8,7 +9,11 @@ import { CloseIcon, MeterIcon } from "../dashboard-icons";
 // Compact floating widget (a separate frameless/transparent Tauri window).
 // Shows just today's cost, trend vs 7-day average, and the live burn rate.
 export function WidgetView() {
-  const { reports, activeBlock } = useUsageReports();
+  const { config } = useAppConfig();
+  const { reports, activeBlock } = useUsageReports({
+    intervalMs: config.fetchIntervalSec * 1000,
+    pauseWhenHidden: config.pauseWhenHidden,
+  });
   const daily = reports.daily ?? null;
   const today = todayLocalDate();
   const todayCost = daily?.entries.find((e) => e.period === today)?.totalCost ?? 0;

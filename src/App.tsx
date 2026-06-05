@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { MeterIcon, WarningIcon, EmptyIcon, GearIcon } from "./dashboard-icons";
 import { Card } from "./components/ui/card";
 import { SegmentedControl } from "./components/segmented-control";
-import { SettingsPanel } from "./components/settings-panel";
+import { SettingsHub } from "./components/settings/settings-hub";
 import { NowCard } from "./components/now-card";
 import { CostTrendChart } from "./components/charts/cost-trend-chart";
 import { ModelBreakdownChart } from "./components/charts/model-breakdown-chart";
@@ -17,6 +17,7 @@ import { dotColor, fmtTokensCompact, fmtTokensFull, fmtUsd, shortModel } from ".
 import { useCountUp } from "./lib/use-count-up";
 import { useUsageReports } from "./lib/use-usage-reports";
 import { useBudgetAlerts } from "./lib/use-budget-alerts";
+import { useAppConfig } from "./lib/use-app-config";
 import { trendVsAverage } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
 import { checkForUpdate } from "./lib/updater";
@@ -78,11 +79,15 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
 
 function App() {
   const [view, setView] = useState<View>("today");
-  const { reports, activeBlock, loading, error } = useUsageReports();
+  const { config, update } = useAppConfig();
+  const { reports, activeBlock, loading, error, refresh } = useUsageReports({
+    intervalMs: config.fetchIntervalSec * 1000,
+    pauseWhenHidden: config.pauseWhenHidden,
+  });
   const report = reports[viewGranularity(view)] ?? null;
   const [showSettings, setShowSettings] = useState(false);
 
-  useBudgetAlerts(reports);
+  useBudgetAlerts(reports, config);
 
   // Open settings when the tray "Settings" item is clicked.
   useEffect(() => {
@@ -243,7 +248,14 @@ function App() {
         </ul>
       )}
 
-      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsHub
+          config={config}
+          update={update}
+          onRefresh={refresh}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </main>
   );
 }
