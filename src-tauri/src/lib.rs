@@ -54,6 +54,24 @@ fn toggle_widget(app: AppHandle) {
     set_widget_visible(&app, !visible);
 }
 
+/// Whether auto-update is safe on this install.
+///
+/// Returns `false` for `.deb` / apt-managed installs on Linux because the Tauri
+/// updater's Linux fallback runs `install_appimage` over whatever payload it
+/// receives, clobbering the dpkg-managed binary. Returns `true` for AppImage
+/// (the env var `APPIMAGE` is set by the AppImage runtime), macOS, and Windows.
+#[tauri::command]
+fn is_auto_update_supported() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        return std::env::var("APPIMAGE").is_ok();
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        true
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -61,7 +79,14 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
-        .invoke_handler(tauri::generate_handler![get_usage, get_blocks, toggle_widget])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            get_usage,
+            get_blocks,
+            toggle_widget,
+            is_auto_update_supported,
+        ])
         // Closing the window hides it (the app stays in the tray and keeps running,
         // so budget/notification checks keep firing). Quit via the tray menu.
         .on_window_event(|window, event| {
@@ -75,8 +100,13 @@ pub fn run() {
             let show = MenuItem::with_id(app, "show", "Open agentmeter", true, None::<&str>)?;
             let widget = MenuItem::with_id(app, "widget", "Show / hide widget", true, None::<&str>)?;
             let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+            let check_update =
+                MenuItem::with_id(app, "check-update", "Check for updates…", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &widget, &settings, &quit])?;
+            let menu = Menu::with_items(
+                app,
+                &[&show, &widget, &settings, &check_update, &quit],
+            )?;
 
             // --- Tray icon ---
             let tray = TrayIconBuilder::new()
@@ -105,6 +135,16 @@ pub fn run() {
                             .map(|w| w.is_visible().unwrap_or(false))
                             .unwrap_or(false);
                         set_widget_visible(app, !visible);
+                    }
+                    "check-update" => {
+                        // Frontend owns the update flow (semver guard, consent
+                        // dialog, .deb skip). Bringing the window forward gives
+                        // the dialog a parent so it can't end up off-screen.
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                            let _ = w.emit("check-update", ());
+                        }
                     }
                     _ => {}
                 })

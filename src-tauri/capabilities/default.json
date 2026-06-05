@@ -8,6 +8,8 @@
     "opener:default",
     "store:default",
     "notification:default",
+    "updater:default",
+    "dialog:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [{ "name": "binaries/ccusage", "sidecar": true, "args": true }]

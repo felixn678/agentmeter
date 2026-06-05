@@ -6,6 +6,7 @@
 //! consumes this same data.
 
 use serde::{Deserialize, Serialize};
+#[cfg(debug_assertions)]
 use std::process::Command;
 use tauri::AppHandle;
 use tauri_plugin_shell::ShellExt;
@@ -100,9 +101,10 @@ fn parse(stdout: &[u8]) -> Result<UsageReport, String> {
 
 /// Run a ccusage subcommand and return raw stdout bytes.
 ///
-/// Prefers the bundled standalone sidecar (a prebuilt ccusage binary that needs
-/// no Node). Falls back to a system `npx ccusage@latest` if the sidecar is
-/// unavailable (e.g. during `tauri dev` before the binary is copied).
+/// Prefers the bundled standalone sidecar. In debug builds, falls back to
+/// `npx ccusage@latest` for local dev convenience. Release builds DO NOT
+/// include the npx fallback — auto-update would otherwise launder an
+/// unverified npm package into a code path signed by our minisign key.
 pub async fn run_ccusage(app: &AppHandle, args: &[&str]) -> Result<Vec<u8>, String> {
     if let Ok(cmd) = app.shell().sidecar("ccusage") {
         if let Ok(out) = cmd.args(args.iter().copied()).output().await {
@@ -112,17 +114,29 @@ pub async fn run_ccusage(app: &AppHandle, args: &[&str]) -> Result<Vec<u8>, Stri
         }
     }
 
+    #[cfg(debug_assertions)]
+    {
+        run_via_npx(args)
+    }
+
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = args;
+        Err("ccusage sidecar unavailable. Reinstall agentmeter or report this issue.".to_string())
+    }
+}
+
+#[cfg(debug_assertions)]
+fn run_via_npx(args: &[&str]) -> Result<Vec<u8>, String> {
     let mut npx_args = vec!["-y", "ccusage@latest"];
     npx_args.extend_from_slice(args);
     let output = Command::new("npx").args(npx_args).output().map_err(|e| {
         format!("ccusage sidecar unavailable and npx failed: {e}. Install Node, or run a bundled build.")
     })?;
-
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("ccusage returned an error: {}", stderr.trim()));
     }
-
     Ok(output.stdout)
 }
 

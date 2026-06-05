@@ -19,6 +19,7 @@ import { useUsageReports } from "./lib/use-usage-reports";
 import { useBudgetAlerts } from "./lib/use-budget-alerts";
 import { trendVsAverage } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
+import { checkForUpdate } from "./lib/updater";
 
 function EntryRow({ entry }: { entry: UsageEntry }) {
   return (
@@ -86,6 +87,17 @@ function App() {
   // Open settings when the tray "Settings" item is clicked.
   useEffect(() => {
     const unlisten = listen("open-settings", () => setShowSettings(true));
+    return () => {
+      void unlisten.then((f) => f());
+    };
+  }, []);
+
+  // Auto-update: silent check at startup, explicit check from tray menu.
+  useEffect(() => {
+    void checkForUpdate(false);
+    const unlisten = listen("check-update", () => {
+      void checkForUpdate(true);
+    });
     return () => {
       void unlisten.then((f) => f());
     };
