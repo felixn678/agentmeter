@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "release:build": "gh workflow run release-build.yml -f tag=v$(node -p \"require('./package.json').version\")"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
