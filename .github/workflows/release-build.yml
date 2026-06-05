@@ -97,17 +97,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # NOTE: macOS Apple signing intentionally NOT wired here.
+      # Empty APPLE_* env vars still trigger Tauri's signing path and fail on
+      # `security import` with an empty certificate. Phase 4 (deferred) adds
+      # the APPLE_* env block back once the Developer ID cert is available.
+      # Until then: shipped macOS bundles are unsigned (user does right-click
+      # → Open on first launch). Minisign-based auto-update still works.
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5  # v0
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS signing — phase 4 scaffold; absent secrets = unsigned build.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           args: --target ${{ matrix.target }}
 
