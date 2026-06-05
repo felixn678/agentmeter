@@ -2,62 +2,24 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { MeterIcon, WarningIcon, EmptyIcon } from "./dashboard-icons";
 import { Card } from "./components/ui/card";
-import { Button } from "./components/ui/button";
-
-// These types mirror the Rust structs in src-tauri/src/ccusage.rs (serde camelCase).
-type ModelBreakdown = {
-  modelName: string;
-  cost: number;
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-};
-
-type UsageEntry = {
-  period: string;
-  agent: string;
-  totalCost: number;
-  totalTokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  modelsUsed: string[];
-  modelBreakdowns: ModelBreakdown[];
-};
-
-type Totals = { totalCost: number; totalTokens: number };
-type UsageReport = { entries: UsageEntry[]; totals: Totals };
-
-type Granularity = "daily" | "weekly" | "monthly";
-
-const GRANULARITIES: Granularity[] = ["daily", "weekly", "monthly"];
-const GRANULARITY_LABELS: Record<Granularity, string> = {
-  daily: "Day",
-  weekly: "Week",
-  monthly: "Month",
-};
-
-const fmtUsd = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
-const fmtTokensFull = (n: number) => n.toLocaleString("en-US");
-const fmtTokensCompact = (n: number) =>
-  Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
-
-// Strip a trailing date suffix (e.g. "claude-haiku-4-5-20251001" -> "claude-haiku-4-5").
-const shortModel = (name: string) => name.replace(/-\d{6,8}$/, "");
-
-// Stable muted dot color per model name.
-const MODEL_DOT_COLORS = ["#0a84ff", "#30d158", "#ff9f0a", "#bf5af2", "#ff375f", "#64d2ff"];
-const dotColor = (name: string) => {
-  const sum = [...name].reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return MODEL_DOT_COLORS[sum % MODEL_DOT_COLORS.length];
-};
+import { SegmentedControl } from "./components/segmented-control";
+import { CostTrendChart } from "./components/charts/cost-trend-chart";
+import { ModelBreakdownChart } from "./components/charts/model-breakdown-chart";
+import {
+  VIEW_LABELS,
+  viewGranularity,
+  type View,
+  type UsageEntry,
+  type UsageReport,
+} from "./lib/usage-types";
+import { dotColor, fmtTokensCompact, fmtTokensFull, fmtUsd, shortModel } from "./lib/format";
+import { useCountUp } from "./lib/use-count-up";
+import { latestTrend } from "./lib/trend";
+import { todayLocalDate } from "./lib/today";
 
 function EntryRow({ entry }: { entry: UsageEntry }) {
   return (
-    <li className="rounded-[11px] border border-border bg-surface px-3.5 py-3 shadow-[var(--shadow)] transition-[transform,border-color] hover:-translate-y-px hover:border-border-strong">
+    <li className="rounded-[11px] border border-border bg-surface px-3.5 py-3 shadow-[var(--shadow)] transition-[transform,border-color] hover:-translate-y-px hover:border-border-strong active:scale-[0.99]">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-sm font-semibold tabular-nums">{entry.period}</span>
         <span className="text-[15px] font-bold tabular-nums">{fmtUsd(entry.totalCost)}</span>
@@ -95,15 +57,29 @@ function SkeletonList() {
 }
 
 function StatSkeleton() {
-  return <span className="shimmer inline-block h-[26px] w-24 rounded-md bg-inset" />;
+  return <span className="shimmer inline-block h-[28px] w-28 rounded-md bg-inset" />;
+}
+
+function EmptyState({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="px-4 py-10 text-center text-subtle">
+      <div className="flex justify-center">
+        <EmptyIcon />
+      </div>
+      <p className="mb-1 mt-3 text-sm font-semibold text-muted">{title}</p>
+      <p className="mx-auto max-w-[280px] text-[12.5px] leading-relaxed">{hint}</p>
+    </div>
+  );
 }
 
 function App() {
-  const [granularity, setGranularity] = useState<Granularity>("daily");
+  const [view, setView] = useState<View>("today");
   const [report, setReport] = useState<UsageReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Today reuses daily data, so it shares the daily fetch — keyed on granularity, not view.
+  const granularity = viewGranularity(view);
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -117,8 +93,35 @@ function App() {
     };
   }, [granularity]);
 
-  const entries = report ? [...report.entries].reverse() : []; // newest first
-  const isEmpty = !loading && !error && report !== null && entries.length === 0;
+  const isToday = view === "today";
+  const todayEntry =
+    report && isToday
+      ? report.entries.find((e) => e.period === todayLocalDate()) ?? null
+      : null;
+
+  // Hero source differs per view: today's single day vs the range totals.
+  const heroCost = isToday ? todayEntry?.totalCost ?? 0 : report?.totals.totalCost ?? 0;
+  const heroTokens = isToday ? todayEntry?.totalTokens ?? 0 : report?.totals.totalTokens ?? 0;
+  const animatedCost = useCountUp(heroCost);
+  const heroSubLabel = isToday ? "Today" : `${VIEW_LABELS[view]} totals`;
+  const trend = report ? latestTrend(report.entries) : null;
+
+  // Per-view data slices.
+  const donutEntries = isToday ? (todayEntry ? [todayEntry] : []) : report?.entries ?? [];
+  const trendChartEntries = isToday ? report?.entries.slice(-7) ?? [] : report?.entries ?? [];
+  const listEntries = isToday
+    ? todayEntry
+      ? [todayEntry]
+      : []
+    : report
+      ? [...report.entries].reverse()
+      : [];
+
+  const hasContent =
+    !error && report !== null && (isToday ? todayEntry !== null : report.entries.length > 0);
+  const emptyToday = !loading && !error && report !== null && isToday && todayEntry === null;
+  const emptyRange =
+    !loading && !error && report !== null && !isToday && report.entries.length === 0;
 
   return (
     <main className="mx-auto max-w-[600px] px-[18px] pb-7 pt-5">
@@ -129,40 +132,54 @@ function App() {
           </span>
           <h1 className="text-base font-[650] tracking-[-0.01em]">agentmeter</h1>
         </div>
-        <div
-          className="inline-flex gap-0.5 rounded-[9px] bg-inset p-[3px]"
-          role="tablist"
-          aria-label="Time range"
-        >
-          {GRANULARITIES.map((g) => (
-            <Button
-              key={g}
-              variant="segment"
-              role="tab"
-              aria-selected={g === granularity}
-              onClick={() => setGranularity(g)}
-            >
-              {GRANULARITY_LABELS[g]}
-            </Button>
-          ))}
-        </div>
+        <SegmentedControl value={view} onChange={setView} />
       </header>
 
       <section className="mb-5 grid grid-cols-[1.4fr_1fr] gap-3">
         <Card className="stat-hero flex flex-col gap-1.5 px-[18px] py-4">
           <span className="text-xs font-medium text-muted">Total cost</span>
-          <span className="text-[32px] font-bold leading-[1.1] tracking-[-0.02em] tabular-nums">
-            {report ? fmtUsd(report.totals.totalCost) : <StatSkeleton />}
+          <span className="text-[34px] font-bold leading-[1.05] tracking-[-0.02em] tabular-nums">
+            {report ? fmtUsd(animatedCost) : <StatSkeleton />}
           </span>
-          <span className="text-[11px] text-subtle">{GRANULARITY_LABELS[granularity]} totals</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-subtle">{heroSubLabel}</span>
+            {trend && hasContent && (
+              <span
+                className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums"
+                style={
+                  trend.dir === "up"
+                    ? { background: "var(--accent-soft)", color: "var(--accent)" }
+                    : { background: "rgba(48,209,88,0.18)", color: "#22a35a" }
+                }
+                title={isToday ? "Today vs previous day" : `Latest ${VIEW_LABELS[view]} vs previous`}
+              >
+                {trend.dir === "up" ? "↑" : "↓"} {trend.pct > 999 ? "999+" : trend.pct.toFixed(0)}%
+              </span>
+            )}
+          </div>
         </Card>
         <Card className="flex min-w-0 flex-col gap-1.5 px-[18px] py-4">
           <span className="text-xs font-medium text-muted">Total tokens</span>
           <span className="truncate text-[22px] font-bold leading-[1.1] tracking-[-0.02em] tabular-nums">
-            {report ? fmtTokensFull(report.totals.totalTokens) : <StatSkeleton />}
+            {report ? fmtTokensFull(heroTokens) : <StatSkeleton />}
           </span>
         </Card>
       </section>
+
+      {hasContent && (
+        <section className="mb-5 flex flex-col gap-3">
+          <Card className="px-4 py-4">
+            <div className="mb-2 text-xs font-medium text-muted">
+              {isToday ? "Cost trend · last 7 days" : "Cost trend"}
+            </div>
+            <CostTrendChart key={view} entries={trendChartEntries} emphasizeLast={isToday} />
+          </Card>
+          <Card className="px-4 py-4">
+            <div className="mb-3 text-xs font-medium text-muted">By model</div>
+            <ModelBreakdownChart entries={donutEntries} />
+          </Card>
+        </section>
+      )}
 
       {error && (
         <Card
@@ -179,21 +196,22 @@ function App() {
 
       {loading && !report && <SkeletonList />}
 
-      {isEmpty && (
-        <div className="px-4 py-10 text-center text-subtle">
-          <div className="flex justify-center">
-            <EmptyIcon />
-          </div>
-          <p className="mb-1 mt-3 text-sm font-semibold text-muted">No usage yet</p>
-          <p className="mx-auto max-w-[280px] text-[12.5px] leading-relaxed">
-            Run a coding agent (Claude Code, Codex, Gemini) and your costs will show up here.
-          </p>
-        </div>
+      {emptyToday && (
+        <EmptyState
+          title="No usage today yet"
+          hint="Run a coding agent (Claude Code, Codex, Gemini) and today's cost will show up here."
+        />
+      )}
+      {emptyRange && (
+        <EmptyState
+          title="No usage yet"
+          hint="Run a coding agent (Claude Code, Codex, Gemini) and your costs will show up here."
+        />
       )}
 
-      {entries.length > 0 && (
+      {hasContent && (
         <ul className="flex flex-col gap-2">
-          {entries.map((e) => (
+          {listEntries.map((e) => (
             <EntryRow key={e.period} entry={e} />
           ))}
         </ul>
