@@ -128,3 +128,11 @@ Quick reference after merging a Release PR:
 ```bash
 pnpm release:build   # builds + uploads installers + latest.json to the new tag
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Felix Nguyen.
+
+agentmeter bundles [`ccusage`](https://github.com/ryoppippi/ccusage) (MIT) as a
+standalone sidecar binary; its license and copyright are retained with the bundled
+binary. Other dependencies (Tauri, React) are MIT/Apache-2.0.

@@ -125,3 +125,11 @@ Quick reference sau khi merge Release PR:
 ```bash
 pnpm release:build   # build + upload installers + latest.json vào tag mới
 ```
+
+## Giấy phép
+
+[MIT](LICENSE) © 2026 Felix Nguyen.
+
+agentmeter đóng gói [`ccusage`](https://github.com/ryoppippi/ccusage) (MIT) dưới dạng
+sidecar binary độc lập; giấy phép và bản quyền của ccusage được giữ kèm theo binary đó.
+Các dependency khác (Tauri, React) là MIT/Apache-2.0.
