@@ -11,10 +11,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (must already exist, e.g. v0.3.0)'
+        description: "Tag to release (must already exist, e.g. v0.3.0)"
         required: true
-  push:
-    tags: ['v*']  # for PAT-triggered tags (future)
+        type: string
 
 permissions: {}  # RED-TEAM H1: zero default; scope per-job
 
