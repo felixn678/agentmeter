@@ -91,31 +91,27 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # tauri-action handles: build, sign with minisign, upload installers +
-      # .sig files to the GH Release, and merge latest.json across matrix runs.
+      # Build directly via the Tauri CLI instead of tauri-action so that:
+      # (1) .sig files remain on disk for the upload step below — tauri-action
+      #     cleans them up after its own (skipped) latest.json attempt.
+      # (2) latest.json upload is fully under our control with stable asset
+      #     names + signature merge across the matrix.
       # NOTE: macOS Apple signing intentionally not wired here. Phase 4 adds
       # APPLE_* env block once Developer ID cert is real. Until then bundles
       # are unsigned (user does right-click → Open on first launch); minisign
       # auto-update still works.
-      - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5  # v0
+      - name: Build signed Tauri bundle
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ needs.resolve-tag.outputs.tag }}
-          releaseName: ${{ needs.resolve-tag.outputs.tag }}
-          releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+        run: pnpm tauri build --target ${{ matrix.target }}
 
-      # tauri-action v0 skips uploading .sig files + latest.json when bundle
-      # filenames don't match its expected pattern (Tauri v2 names the macOS
-      # updater bundle agentmeter.app.tar.gz with no arch/version, whereas
-      # tauri-action looks for agentmeter_<version>_<arch>.app.tar.gz.sig).
-      # Manually upload the updater archive + signature with stable names,
-      # and stash a per-platform JSON fragment for the publish-updater job.
-      - name: Upload updater signature + write platform fragment
+      - name: Upload installers + updater archive + signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.resolve-tag.outputs.tag }}
+          LABEL: ${{ matrix.label }}
+          TARGET: ${{ matrix.target }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.resolve-tag.outputs.tag }}
@@ -163,12 +159,27 @@ jobs:
             DEST_NAME=$(basename "$SRC_ARCHIVE")
           fi
 
+          # Ensure release shell exists (release-please usually created it on
+          # merge, but workflow_dispatch on an old tag may need it).
+          gh release view "$TAG" >/dev/null 2>&1 || \
+            gh release create "$TAG" --title "$TAG" --notes "" --target master
+
           STAGE=$(mktemp -d)
           cp "$SRC_ARCHIVE" "${STAGE}/${DEST_NAME}"
           cp "$SRC_SIG"     "${STAGE}/${DEST_NAME}.sig"
+
+          # Also upload user-facing installers from the same bundle dir.
+          INSTALLERS=()
+          while IFS= read -r f; do INSTALLERS+=("$f"); done < <(
+            find "$BUNDLE_DIR" \
+              \( -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.rpm' -o -name '*.msi' -o -name '*.exe' \) \
+              -type f
+          )
+
           gh release upload "$TAG" \
             "${STAGE}/${DEST_NAME}" \
             "${STAGE}/${DEST_NAME}.sig" \
+            "${INSTALLERS[@]}" \
             --clobber
 
           SIG_CONTENT=$(cat "$SRC_SIG")
