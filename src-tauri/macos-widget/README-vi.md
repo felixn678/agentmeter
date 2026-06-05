@@ -78,6 +78,20 @@ List identities có: `security find-identity -v -p codesigning`.
 
 ## Caveat (free-team only)
 
+- **macOS 15 (Sequoia) + free Apple ID = PlugInKit silently refuse register
+  widget extension.** Đã verify thực tế: widget build + sign sạch,
+  `codesign --verify --deep --strict` PASS, embed `.app` copy vào
+  `/Applications/` đúng — nhưng widget không xuất hiện trong Notification
+  Center gallery và `pluginkit -m -p com.apple.widgetkit-extension` không
+  list nó. Sequoia siết chặt extension validation: PlugInKit yêu cầu widget
+  host bundle phải pass `spctl` assessment, và free-team `Apple Development`
+  cert bị Gatekeeper `rejected` vì chưa notarized. `sudo spctl --master-disable`
+  trên Sequoia yêu cầu confirm trong System Settings, và kể cả khi confirm
+  cũng không đảm bảo PlugInKit accept (Apple có thêm extension-specific
+  checks). Cách duy nhất gỡ block triệt để là **paid Apple Developer ID
+  + notarization** — defer sang Phase 4 chưa làm của widget plan. Code Swift
+  + signing pipeline ở đây ĐÚNG cho paid path; block hiện tại thuần Apple
+  platform policy, không phải bug repo.
 - **Widget cần macOS 14 (Sonoma) trở lên.** Host Tauri app vẫn chạy được
   macOS 11+; chỉ widget extension cần macOS 14 vì dùng SwiftUI
   `containerBackground` modifier. Trên macOS 11–13 host app vẫn OK nhưng

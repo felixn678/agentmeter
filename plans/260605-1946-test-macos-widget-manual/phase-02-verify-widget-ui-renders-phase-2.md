@@ -14,6 +14,19 @@ Build the Swift widget extension via XcodeGen + xcodebuild, install it under
 a host `.app` so PlugInKit discovers it, and add the widget from the macOS
 gallery to confirm it renders the snapshot.
 
+> **⚠️ macOS 15 (Sequoia) + free Apple ID — verified blocked at PlugInKit.**
+> The build (Step 1-5) succeeds end-to-end and `codesign --verify --deep --strict`
+> passes, but `pluginkit -m -p com.apple.widgetkit-extension` never lists
+> the widget and Notification Center → Edit Widgets does not find it.
+> Sequoia tightened extension-validation: PlugInKit requires the host bundle
+> to clear `spctl` assessment, and a free-team `Apple Development` cert is
+> `rejected` by Gatekeeper (`source=Unnotarized Developer ID`). `sudo spctl
+> --master-disable` is gated behind a System Settings confirmation on Sequoia
+> and even when granted is not guaranteed to satisfy PlugInKit's extension
+> path. The only fully-reliable unblock is **paid Apple Developer ID +
+> notarization** (Phase 4 of the widget plan). Steps 6-7 below are documented
+> for completeness but expected to NOT find the widget on macOS 15 free-team.
+
 ## Prerequisites
 
 - Phase 1 verified (snapshot file is being written).

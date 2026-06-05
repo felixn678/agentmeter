@@ -81,6 +81,21 @@ Look up identities with `security find-identity -v -p codesigning`.
 
 ## Known caveats (free-team only)
 
+- **macOS 15 (Sequoia) + free Apple ID = PlugInKit silently refuses to register
+  the widget extension.** Verified empirically: the widget builds and signs
+  cleanly, `codesign --verify --deep --strict` passes, the embedded `.app`
+  copies into `/Applications/` correctly, but the widget never appears in the
+  Notification Center gallery and `pluginkit -m -p com.apple.widgetkit-extension`
+  doesn't list it. Sequoia tightened extension validation: PlugInKit now
+  requires the widget host bundle to clear `spctl` assessment, and a free-team
+  `Apple Development` cert is `rejected` by Gatekeeper because it isn't
+  notarized. `sudo spctl --master-disable` is gated behind a System Settings
+  confirmation on Sequoia, and even if granted is not guaranteed to satisfy
+  PlugInKit's extension-specific checks. The only path that fully removes this
+  block is **paid Apple Developer ID + notarization** — deferred to the
+  unbuilt Phase 4 of the widget plan. The Swift + signing pipeline shipped
+  here is the right code for that paid path; the gating is purely Apple's
+  platform policy, not a bug in this repo.
 - **Widget requires macOS 14 (Sonoma) or newer.** The host Tauri app still
   runs on macOS 11+; only the widget extension itself needs macOS 14 because
   it uses SwiftUI's `containerBackground` modifier. On macOS 11–13 the host
