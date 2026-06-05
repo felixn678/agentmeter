@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 import { MeterIcon, WarningIcon, EmptyIcon } from "./dashboard-icons";
 import { Card } from "./components/ui/card";
 import { SegmentedControl } from "./components/segmented-control";
@@ -10,10 +9,10 @@ import {
   viewGranularity,
   type View,
   type UsageEntry,
-  type UsageReport,
 } from "./lib/usage-types";
 import { dotColor, fmtTokensCompact, fmtTokensFull, fmtUsd, shortModel } from "./lib/format";
 import { useCountUp } from "./lib/use-count-up";
+import { useUsageReports } from "./lib/use-usage-reports";
 import { latestTrend } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
 
@@ -74,24 +73,8 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
 
 function App() {
   const [view, setView] = useState<View>("today");
-  const [report, setReport] = useState<UsageReport | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Today reuses daily data, so it shares the daily fetch — keyed on granularity, not view.
-  const granularity = viewGranularity(view);
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    invoke<UsageReport>("get_usage", { granularity })
-      .then((r) => !cancelled && setReport(r))
-      .catch((e) => !cancelled && setError(String(e)))
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [granularity]);
+  const { reports, loading, error } = useUsageReports();
+  const report = reports[viewGranularity(view)] ?? null;
 
   const isToday = view === "today";
   const todayEntry =
