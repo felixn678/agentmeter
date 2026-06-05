@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/felixn678/agentmeter/compare/v0.4.1...v0.5.0) (2026-06-05)
+
+
+### Features
+
+* **release:** minimum system requirements + bilingual release runbook ([2679a83](https://github.com/felixn678/agentmeter/commit/2679a83d5ba3b8c1af48dbcdfb358cdc52668326))
+
+
+### Bug Fixes
+
+* **ci:** dedup AppImage upload between DEST + INSTALLERS ([e40a368](https://github.com/felixn678/agentmeter/commit/e40a3681a7e34f6a5830ac966670a678ed61c7d4))
+* **ci:** pass --repo to gh release upload in publish-updater-json ([3ed3eb1](https://github.com/felixn678/agentmeter/commit/3ed3eb1a0dabf64d47f4cdba95b779397fd32e96))
+
 ## [0.4.1](https://github.com/felixn678/agentmeter/compare/v0.4.0...v0.4.1) (2026-06-05)
 
 
