@@ -112,11 +112,6 @@ jobs:
           TAG: ${{ needs.resolve-tag.outputs.tag }}
           LABEL: ${{ matrix.label }}
           TARGET: ${{ matrix.target }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.resolve-tag.outputs.tag }}
-          LABEL: ${{ matrix.label }}
-          TARGET: ${{ matrix.target }}
         shell: bash
         run: |
           set -euo pipefail
