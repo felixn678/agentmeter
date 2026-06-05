@@ -136,14 +136,21 @@ jobs:
           # Updater archive on macOS is *.app.tar.gz; on Linux it's the
           # raw *.AppImage (Tauri v2 also emits *.AppImage.tar.gz.sig in some
           # versions, but the updater consumes the AppImage directly).
-          if [[ "$PLATFORM" == darwin-* ]]; then
-            SRC_SIG=$(find "$BUNDLE_DIR" -name '*.app.tar.gz.sig' -print -quit)
-          else
-            SRC_SIG=$(find "$BUNDLE_DIR" -name '*.AppImage.sig' -print -quit)
-            # Fall back to the .tar.gz wrapper if the bundler chose that form.
-            [[ -z "$SRC_SIG" ]] && SRC_SIG=$(find "$BUNDLE_DIR" -name '*.AppImage.tar.gz.sig' -print -quit)
-          fi
+          # Use a list of candidate patterns instead of compound && — `set -e`
+          # exits the script if `[[ ]] && cmd` returns non-zero when the test
+          # is false.
+          case "$PLATFORM" in
+            darwin-*) PATTERNS=("*.app.tar.gz.sig") ;;
+            linux-*)  PATTERNS=("*.AppImage.tar.gz.sig" "*.AppImage.sig") ;;
+            *) echo "::error::Unknown platform $PLATFORM"; exit 1 ;;
+          esac
+          SRC_SIG=""
+          for pat in "${PATTERNS[@]}"; do
+            found=$(find "$BUNDLE_DIR" -type f -name "$pat" 2>/dev/null | head -n1 || true)
+            if [[ -n "$found" ]]; then SRC_SIG="$found"; break; fi
+          done
           [[ -n "$SRC_SIG" ]] || { echo "::error::No updater .sig found under $BUNDLE_DIR"; exit 1; }
+          echo "Found updater sig: $SRC_SIG"
           SRC_ARCHIVE="${SRC_SIG%.sig}"
           [[ -f "$SRC_ARCHIVE" ]] || { echo "::error::Missing archive $SRC_ARCHIVE"; exit 1; }
 
