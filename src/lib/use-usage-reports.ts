@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { Granularity, UsageReport } from "./usage-types";
+import type { ActiveBlock, Granularity, UsageReport } from "./usage-types";
 
 const GRANS: Granularity[] = ["daily", "weekly", "monthly"];
 const REVALIDATE_MS = 30_000;
@@ -13,6 +13,7 @@ export type Reports = Partial<Record<Granularity, UsageReport>>;
 // existing data rather than flashing an error over good data.
 export function useUsageReports() {
   const [reports, setReports] = useState<Reports>({});
+  const [activeBlock, setActiveBlock] = useState<ActiveBlock | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasData = useRef(false);
@@ -21,6 +22,13 @@ export function useUsageReports() {
     let cancelled = false;
 
     const load = () => {
+      // Live burn rate — best-effort, keep previous value on failure.
+      invoke<ActiveBlock | null>("get_blocks")
+        .then((b) => {
+          if (!cancelled) setActiveBlock(b ?? null);
+        })
+        .catch(() => {});
+
       Promise.allSettled(
         GRANS.map((g) =>
           invoke<UsageReport>("get_usage", { granularity: g }).then((r) => [g, r] as const),
@@ -52,5 +60,5 @@ export function useUsageReports() {
     };
   }, []);
 
-  return { reports, loading, error };
+  return { reports, activeBlock, loading, error };
 }

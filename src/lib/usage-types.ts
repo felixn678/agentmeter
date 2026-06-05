@@ -25,6 +25,14 @@ export type UsageEntry = {
 export type Totals = { totalCost: number; totalTokens: number };
 export type UsageReport = { entries: UsageEntry[]; totals: Totals };
 
+// Live burn rate for the current 5-hour billing block (from ccusage `blocks`).
+export type ActiveBlock = {
+  costUsd: number;
+  costPerHour: number;
+  projectedCost: number;
+  remainingMinutes: number;
+};
+
 // Granularity = what the Rust get_usage command accepts (unchanged contract).
 export type Granularity = "daily" | "weekly" | "monthly";
 

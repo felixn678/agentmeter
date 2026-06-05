@@ -1,5 +1,7 @@
+mod blocks;
 mod ccusage;
 
+use blocks::ActiveBlock;
 use ccusage::{Granularity, UsageReport};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -18,12 +20,18 @@ async fn get_usage(app: tauri::AppHandle, granularity: String) -> Result<UsageRe
     ccusage::fetch(&app, g).await
 }
 
+/// Command for the frontend: the current billing block's burn rate (or null).
+#[tauri::command]
+async fn get_blocks(app: tauri::AppHandle) -> Result<Option<ActiveBlock>, String> {
+    blocks::fetch_active(&app).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![get_usage])
+        .invoke_handler(tauri::generate_handler![get_usage, get_blocks])
         .setup(|app| {
             // --- Tray menu ---
             let show = MenuItem::with_id(app, "show", "Open agentmeter", true, None::<&str>)?;

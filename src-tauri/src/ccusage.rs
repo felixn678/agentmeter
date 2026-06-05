@@ -98,40 +98,38 @@ fn parse(stdout: &[u8]) -> Result<UsageReport, String> {
     serde_json::from_slice(stdout).map_err(|e| format!("Failed to parse JSON from ccusage: {e}"))
 }
 
-/// Run ccusage and return the parsed report.
+/// Run a ccusage subcommand and return raw stdout bytes.
 ///
 /// Prefers the bundled standalone sidecar (a prebuilt ccusage binary that needs
 /// no Node). Falls back to a system `npx ccusage@latest` if the sidecar is
 /// unavailable (e.g. during `tauri dev` before the binary is copied).
-pub async fn fetch(app: &AppHandle, granularity: Granularity) -> Result<UsageReport, String> {
-    let sub = granularity.subcommand();
-
+pub async fn run_ccusage(app: &AppHandle, args: &[&str]) -> Result<Vec<u8>, String> {
     if let Ok(cmd) = app.shell().sidecar("ccusage") {
-        if let Ok(out) = cmd.args([sub, "--json"]).output().await {
+        if let Ok(out) = cmd.args(args.iter().copied()).output().await {
             if out.status.success() {
-                return parse(&out.stdout);
+                return Ok(out.stdout);
             }
         }
     }
 
-    fetch_via_npx(sub)
-}
-
-/// Fallback: invoke a system ccusage via npx (requires Node on PATH).
-fn fetch_via_npx(sub: &str) -> Result<UsageReport, String> {
-    let output = Command::new("npx")
-        .args(["-y", "ccusage@latest", sub, "--json"])
-        .output()
-        .map_err(|e| {
-            format!("ccusage sidecar unavailable and npx failed: {e}. Install Node, or run a bundled build.")
-        })?;
+    let mut npx_args = vec!["-y", "ccusage@latest"];
+    npx_args.extend_from_slice(args);
+    let output = Command::new("npx").args(npx_args).output().map_err(|e| {
+        format!("ccusage sidecar unavailable and npx failed: {e}. Install Node, or run a bundled build.")
+    })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("ccusage returned an error: {}", stderr.trim()));
     }
 
-    parse(&output.stdout)
+    Ok(output.stdout)
+}
+
+/// Run ccusage at the given granularity and return the parsed report.
+pub async fn fetch(app: &AppHandle, granularity: Granularity) -> Result<UsageReport, String> {
+    let bytes = run_ccusage(app, &[granularity.subcommand(), "--json"]).await?;
+    parse(&bytes)
 }
 
 /// Get the most recent entry (the bucket closest to now). ccusage returns

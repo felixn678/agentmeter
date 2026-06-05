@@ -2,6 +2,7 @@ import { useState } from "react";
 import { MeterIcon, WarningIcon, EmptyIcon } from "./dashboard-icons";
 import { Card } from "./components/ui/card";
 import { SegmentedControl } from "./components/segmented-control";
+import { NowCard } from "./components/now-card";
 import { CostTrendChart } from "./components/charts/cost-trend-chart";
 import { ModelBreakdownChart } from "./components/charts/model-breakdown-chart";
 import {
@@ -13,7 +14,7 @@ import {
 import { dotColor, fmtTokensCompact, fmtTokensFull, fmtUsd, shortModel } from "./lib/format";
 import { useCountUp } from "./lib/use-count-up";
 import { useUsageReports } from "./lib/use-usage-reports";
-import { latestTrend } from "./lib/trend";
+import { trendVsAverage } from "./lib/trend";
 import { todayLocalDate } from "./lib/today";
 
 function EntryRow({ entry }: { entry: UsageEntry }) {
@@ -73,7 +74,7 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
 
 function App() {
   const [view, setView] = useState<View>("today");
-  const { reports, loading, error } = useUsageReports();
+  const { reports, activeBlock, loading, error } = useUsageReports();
   const report = reports[viewGranularity(view)] ?? null;
 
   const isToday = view === "today";
@@ -87,7 +88,7 @@ function App() {
   const heroTokens = isToday ? todayEntry?.totalTokens ?? 0 : report?.totals.totalTokens ?? 0;
   const animatedCost = useCountUp(heroCost);
   const heroSubLabel = isToday ? "Today" : `${VIEW_LABELS[view]} totals`;
-  const trend = report ? latestTrend(report.entries) : null;
+  const trend = report ? trendVsAverage(report.entries, 7) : null;
 
   // Per-view data slices.
   const donutEntries = isToday ? (todayEntry ? [todayEntry] : []) : report?.entries ?? [];
@@ -118,6 +119,12 @@ function App() {
         <SegmentedControl value={view} onChange={setView} />
       </header>
 
+      {activeBlock && (
+        <section className="mb-3">
+          <NowCard block={activeBlock} />
+        </section>
+      )}
+
       <section className="mb-5 grid grid-cols-[1.4fr_1fr] gap-3">
         <Card className="stat-hero flex flex-col gap-1.5 px-[18px] py-4">
           <span className="text-xs font-medium text-muted">Total cost</span>
@@ -134,7 +141,7 @@ function App() {
                     ? { background: "var(--accent-soft)", color: "var(--accent)" }
                     : { background: "rgba(48,209,88,0.18)", color: "#22a35a" }
                 }
-                title={isToday ? "Today vs previous day" : `Latest ${VIEW_LABELS[view]} vs previous`}
+                title={isToday ? "Today vs 7-day average" : `${VIEW_LABELS[view]} vs recent average`}
               >
                 {trend.dir === "up" ? "↑" : "↓"} {trend.pct > 999 ? "999+" : trend.pct.toFixed(0)}%
               </span>
