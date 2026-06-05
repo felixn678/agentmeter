@@ -128,31 +128,41 @@ jobs:
           BUNDLE_DIR="src-tauri/target/${TARGET}/release/bundle"
           REPO="${{ github.repository }}"
 
+          echo "=== bundle dir contents ==="
+          ls -R "$BUNDLE_DIR" || true
+          echo "=== end ==="
+
+          # Locate updater archive + sig defensively — Tauri puts them in
+          # platform-specific subdirs (macos/, appimage/) and the exact name
+          # varies by version/arch.
           case "$TARGET" in
-            aarch64-apple-darwin)
-              PLATFORM="darwin-aarch64"; ARCH="aarch64"
-              SRC_ARCHIVE="${BUNDLE_DIR}/macos/agentmeter.app.tar.gz"
-              DEST_NAME="agentmeter_${ARCH}.app.tar.gz"
-              ;;
-            x86_64-apple-darwin)
-              PLATFORM="darwin-x86_64"; ARCH="x64"
-              SRC_ARCHIVE="${BUNDLE_DIR}/macos/agentmeter.app.tar.gz"
-              DEST_NAME="agentmeter_${ARCH}.app.tar.gz"
-              ;;
-            x86_64-unknown-linux-gnu)
-              PLATFORM="linux-x86_64"
-              SRC_ARCHIVE=$(find "${BUNDLE_DIR}/appimage" -name "*.AppImage.tar.gz" -print -quit)
-              DEST_NAME=$(basename "$SRC_ARCHIVE")
-              ;;
+            aarch64-apple-darwin) PLATFORM="darwin-aarch64"; ARCH_SUFFIX="aarch64" ;;
+            x86_64-apple-darwin)  PLATFORM="darwin-x86_64";  ARCH_SUFFIX="x64" ;;
+            x86_64-unknown-linux-gnu) PLATFORM="linux-x86_64"; ARCH_SUFFIX="" ;;
             *) echo "::error::Unknown target $TARGET"; exit 1 ;;
           esac
 
-          SRC_SIG="${SRC_ARCHIVE}.sig"
-          [[ -f "$SRC_ARCHIVE" ]] || { echo "::error::Missing $SRC_ARCHIVE"; exit 1; }
-          [[ -f "$SRC_SIG" ]] || { echo "::error::Missing $SRC_SIG"; exit 1; }
+          # Updater archive on macOS is *.app.tar.gz; on Linux it's the
+          # raw *.AppImage (Tauri v2 also emits *.AppImage.tar.gz.sig in some
+          # versions, but the updater consumes the AppImage directly).
+          if [[ "$PLATFORM" == darwin-* ]]; then
+            SRC_SIG=$(find "$BUNDLE_DIR" -name '*.app.tar.gz.sig' -print -quit)
+          else
+            SRC_SIG=$(find "$BUNDLE_DIR" -name '*.AppImage.sig' -print -quit)
+            # Fall back to the .tar.gz wrapper if the bundler chose that form.
+            [[ -z "$SRC_SIG" ]] && SRC_SIG=$(find "$BUNDLE_DIR" -name '*.AppImage.tar.gz.sig' -print -quit)
+          fi
+          [[ -n "$SRC_SIG" ]] || { echo "::error::No updater .sig found under $BUNDLE_DIR"; exit 1; }
+          SRC_ARCHIVE="${SRC_SIG%.sig}"
+          [[ -f "$SRC_ARCHIVE" ]] || { echo "::error::Missing archive $SRC_ARCHIVE"; exit 1; }
 
-          # Stage with the stable destination name so basename on the release
-          # asset matches what latest.json points at.
+          # Stable destination name so latest.json URLs are predictable.
+          if [[ "$PLATFORM" == darwin-* ]]; then
+            DEST_NAME="agentmeter_${ARCH_SUFFIX}.app.tar.gz"
+          else
+            DEST_NAME=$(basename "$SRC_ARCHIVE")
+          fi
+
           STAGE=$(mktemp -d)
           cp "$SRC_ARCHIVE" "${STAGE}/${DEST_NAME}"
           cp "$SRC_SIG"     "${STAGE}/${DEST_NAME}.sig"
@@ -161,7 +171,6 @@ jobs:
             "${STAGE}/${DEST_NAME}.sig" \
             --clobber
 
-          # Write a per-platform fragment for the publish-updater-json job.
           SIG_CONTENT=$(cat "$SRC_SIG")
           URL="https://github.com/${REPO}/releases/download/${TAG}/${DEST_NAME}"
           mkdir -p frag
