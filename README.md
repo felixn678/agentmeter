@@ -46,9 +46,22 @@ widget only reads that file.
 | 3 — Cross-platform widget | Always-on-top Tauri widget window | Mac + Ubuntu | ⬜ |
 | 4 — Native widget | WidgetKit (Swift) for Mac; GNOME extension (GJS) for Ubuntu | Per-OS | ⬜ |
 
+## How usage data is read
+
+The app bundles ccusage's **prebuilt standalone binary** as a Tauri sidecar, so the
+shipped app reads usage data **without Node or ccusage installed**. If the sidecar is
+ever missing (e.g. during dev before it's fetched), it falls back to `npx ccusage@latest`.
+
+The sidecar binaries are not committed (~13MB) — fetch them before building:
+
+```bash
+bash scripts/fetch-ccusage-sidecars.sh   # writes src-tauri/binaries/ccusage-<target-triple>
+```
+
 ## System requirements
 
-- **Node.js** (to run `ccusage` via `npx`).
+- **Node.js + npm** — to build the frontend and to fetch the sidecars (build-time only;
+  the shipped app does not need Node at runtime).
 - **Rust** toolchain.
 - **Ubuntu/Linux:** Tauri's system libraries:
   ```bash
@@ -71,5 +84,6 @@ npm run tauri dev
 ## Build
 
 ```bash
+bash scripts/fetch-ccusage-sidecars.sh   # once, if src-tauri/binaries/ is empty
 npm run tauri build
 ```

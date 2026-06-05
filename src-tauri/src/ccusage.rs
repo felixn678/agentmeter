@@ -7,6 +7,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::process::Command;
+use tauri::AppHandle;
+use tauri_plugin_shell::ShellExt;
 
 /// One usage row for a time bucket (a day, week, or month) from ccusage.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,24 +94,44 @@ impl Granularity {
     }
 }
 
+fn parse(stdout: &[u8]) -> Result<UsageReport, String> {
+    serde_json::from_slice(stdout).map_err(|e| format!("Failed to parse JSON from ccusage: {e}"))
+}
+
 /// Run ccusage and return the parsed report.
 ///
-/// Currently invoked through `npx ccusage@latest`, so the user needs Node.
-/// (A later phase may allow pointing at a pre-installed ccusage binary to drop
-/// the npx dependency.)
-pub fn fetch(granularity: Granularity) -> Result<UsageReport, String> {
+/// Prefers the bundled standalone sidecar (a prebuilt ccusage binary that needs
+/// no Node). Falls back to a system `npx ccusage@latest` if the sidecar is
+/// unavailable (e.g. during `tauri dev` before the binary is copied).
+pub async fn fetch(app: &AppHandle, granularity: Granularity) -> Result<UsageReport, String> {
+    let sub = granularity.subcommand();
+
+    if let Ok(cmd) = app.shell().sidecar("ccusage") {
+        if let Ok(out) = cmd.args([sub, "--json"]).output().await {
+            if out.status.success() {
+                return parse(&out.stdout);
+            }
+        }
+    }
+
+    fetch_via_npx(sub)
+}
+
+/// Fallback: invoke a system ccusage via npx (requires Node on PATH).
+fn fetch_via_npx(sub: &str) -> Result<UsageReport, String> {
     let output = Command::new("npx")
-        .args(["-y", "ccusage@latest", granularity.subcommand(), "--json"])
+        .args(["-y", "ccusage@latest", sub, "--json"])
         .output()
-        .map_err(|e| format!("Failed to run ccusage via npx: {e}. Is Node/npm installed?"))?;
+        .map_err(|e| {
+            format!("ccusage sidecar unavailable and npx failed: {e}. Install Node, or run a bundled build.")
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(format!("ccusage returned an error: {}", stderr.trim()));
     }
 
-    serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("Failed to parse JSON from ccusage: {e}"))
+    parse(&output.stdout)
 }
 
 /// Get the most recent entry (the bucket closest to now). ccusage returns

@@ -9,19 +9,20 @@ use tauri::{
 
 /// Command for the frontend: fetch a report at "daily" | "weekly" | "monthly".
 #[tauri::command]
-fn get_usage(granularity: String) -> Result<UsageReport, String> {
+async fn get_usage(app: tauri::AppHandle, granularity: String) -> Result<UsageReport, String> {
     let g = match granularity.as_str() {
         "weekly" => Granularity::Weekly,
         "monthly" => Granularity::Monthly,
         _ => Granularity::Daily,
     };
-    ccusage::fetch(g)
+    ccusage::fetch(&app, g).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![get_usage])
         .setup(|app| {
             // --- Tray menu ---
@@ -49,19 +50,22 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Fetch today's cost on a background thread (npx ccusage is a bit slow),
-            // then update the tray title.
+            // Fetch today's cost in the background, then update the tray title.
+            let handle = app.handle().clone();
             let tray_handle = tray.clone();
-            std::thread::spawn(move || match ccusage::fetch(Granularity::Daily) {
-                Ok(report) => {
-                    if let Some(entry) = ccusage::latest_entry(&report) {
-                        let _ = tray_handle.set_title(Some(format!("${:.2}", entry.total_cost)));
-                    } else {
-                        let _ = tray_handle.set_title(Some("$0.00"));
+            std::thread::spawn(move || {
+                let result = tauri::async_runtime::block_on(ccusage::fetch(&handle, Granularity::Daily));
+                match result {
+                    Ok(report) => {
+                        if let Some(entry) = ccusage::latest_entry(&report) {
+                            let _ = tray_handle.set_title(Some(format!("${:.2}", entry.total_cost)));
+                        } else {
+                            let _ = tray_handle.set_title(Some("$0.00"));
+                        }
                     }
-                }
-                Err(_) => {
-                    let _ = tray_handle.set_title(Some("⚠"));
+                    Err(_) => {
+                        let _ = tray_handle.set_title(Some("⚠"));
+                    }
                 }
             });
 

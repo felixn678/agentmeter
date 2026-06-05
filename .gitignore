@@ -32,3 +32,6 @@ release-manifest.json
 # Mobile icon sets from `tauri icon` — agentmeter targets desktop only (mac + ubuntu)
 src-tauri/icons/android/
 src-tauri/icons/ios/
+
+# Bundled ccusage sidecar binaries (~13MB) — fetched via scripts/fetch-ccusage-sidecars.sh
+src-tauri/binaries/
