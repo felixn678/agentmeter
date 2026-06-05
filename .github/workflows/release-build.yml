@@ -221,6 +221,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ needs.resolve-tag.outputs.tag }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
@@ -234,4 +235,5 @@ jobs:
             '{version: $v, notes: "", pub_date: $d, platforms: $p}' \
             > latest.json
           cat latest.json
-          gh release upload "$TAG" latest.json --clobber
+          # No checkout in this job — gh would fail to auto-detect the repo.
+          gh release upload "$TAG" latest.json --clobber --repo "$REPO"
